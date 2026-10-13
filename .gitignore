@@ -9,3 +9,8 @@ test.pdf
 rendered/
 proposal_assets/contact_sheet.png
 proposal_assets/*.png
+TeamMylesEziz_*.docx
+TeamMylesEziz_*.pdf
+make_proposal.py
+make_acknowledgment.py
+*SignedAcknowledgment*.pdf

@@ -1,7 +1,20 @@
 # Adaptive Focus Studio
 
-Project One proposal for Mobile App Development, Fall 2026. The proposed app is an offline Flutter focus-session planner with reusable presets, a pauseable timer, editable session history, local insights, and a transparent duration suggestion.
+Adaptive Focus Studio is an offline Flutter app for managing focus sessions. Students can create reusable presets, run and pause a timer, review editable session history, and see a transparent, rule-based duration suggestion.
 
-The [Word proposal](TeamMylesEziz_Project1_Proposal.docx) contains the team plan, SQLite data model, required smart-helper evaluation, Kanban milestones, and five annotated screen layouts. Use the instructor's [official signature page](https://codd.cs.gsu.edu/~lhenry23//mad/Projects/Project1/ver2/submission/signed-statement.html) to prepare the signed acknowledgment. The [local acknowledgment form](TeamMylesEziz_Acknowledgment_ToSign.pdf) is only an unsigned draft; both team members must sign and date the official statement before proposal submission. App development will begin after instructor-team approval.
+## Project status
 
-Team: Myles Miller and Eziz Bagshiyev. Both are in the undergraduate pathway.
+The Project One proposal has been approved. The Word proposal and signed team acknowledgment were submitted through iCollege. Those documents are kept outside this public repository because they contain student IDs and signatures. Development will proceed in small, descriptive commits.
+
+## Planned app
+
+- Five screens: dashboard, preset editor, session activity, history and insights, and settings.
+- Local SQLite storage for presets and session logs, with create, read, update, and delete operations for both.
+- SharedPreferences for settings and a rule-based session-duration suggestion that the user can override.
+- Offline and restart testing, plus accessible interaction and a documented peer-review revision.
+
+## Team
+
+Myles Miller and Eziz Bagshiyev (undergraduate pathway).
+
+The initial screen sketches are in `proposal_assets/`. An editable Figma wireframe will be linked here when ready.

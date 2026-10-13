@@ -1,0 +1,11 @@
+ack_preview-*.png
+proposal_*preview.pdf
+proposal_no_images.docx
+no_images_plus.docx
+one_image.docx
+five_images.docx
+test.docx
+test.pdf
+rendered/
+proposal_assets/contact_sheet.png
+proposal_assets/*.png

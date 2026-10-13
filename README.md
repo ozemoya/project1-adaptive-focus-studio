@@ -17,4 +17,5 @@ The Project One proposal has been approved. The Word proposal and signed team ac
 
 Myles Miller and Eziz Bagshiyev (undergraduate pathway).
 
-The initial screen sketches are in `proposal_assets/`. An editable Figma wireframe will be linked here when ready.
+The initial screen sketches are in `proposal_assets/`. [Editable five-screen Figma wireframe](https://www.figma.com/design/rXtOvNPFTtUFlgaiAUvmAb)
+

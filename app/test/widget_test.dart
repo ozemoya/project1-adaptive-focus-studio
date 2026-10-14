@@ -22,4 +22,38 @@ void main() {
       expect(find.text(entry.value), findsOneWidget);
     }
   });
+
+  testWidgets('preset editor rejects invalid values and shows a saved preset', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const AdaptiveFocusApp());
+    await tester.tap(find.text('Create preset'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save preset'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a preset name'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Preset name'),
+      'Reading',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Duration (minutes)'),
+      '0',
+    );
+    await tester.tap(find.text('Save preset'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enter a whole number from 1 to 180'), findsOneWidget);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Duration (minutes)'),
+      '30',
+    );
+    await tester.tap(find.text('Save preset'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a focus plan'), findsOneWidget);
+    expect(find.text('Reading'), findsOneWidget);
+    expect(find.text('30 minutes'), findsOneWidget);
+  });
 }

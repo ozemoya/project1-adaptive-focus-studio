@@ -28,6 +28,17 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
+  final List<FocusPreset> _presets = [];
+
+  void _savePreset(FocusPreset preset) {
+    setState(() {
+      _presets.add(preset);
+      _selectedIndex = 0;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${preset.name} saved for this session')),
+    );
+  }
 
   static const _sections = <_Section>[
     _Section(
@@ -76,7 +87,13 @@ class _AppShellState extends State<AppShell> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          for (final section in _sections) _SectionPreview(section: section),
+          _PresetList(
+            presets: _presets,
+            onCreate: () => setState(() => _selectedIndex = 1),
+          ),
+          PresetEditor(onSave: _savePreset),
+          for (final section in _sections.skip(2))
+            _SectionPreview(section: section),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -92,6 +109,157 @@ class _AppShellState extends State<AppShell> {
               selectedIcon: Icon(section.selectedIcon),
               label: section.title,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class FocusPreset {
+  const FocusPreset({required this.name, required this.durationMinutes});
+
+  final String name;
+  final int durationMinutes;
+}
+
+class _PresetList extends StatelessWidget {
+  const _PresetList({required this.presets, required this.onCreate});
+
+  final List<FocusPreset> presets;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'Choose a focus plan',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Build a reusable plan for your next study session.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onCreate,
+            icon: const Icon(Icons.add),
+            label: const Text('Create preset'),
+          ),
+          const SizedBox(height: 20),
+          if (presets.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('No presets yet. Create one to get started.'),
+              ),
+            )
+          else
+            for (final preset in presets)
+              Card(
+                child: ListTile(
+                  title: Text(preset.name),
+                  subtitle: Text('${preset.durationMinutes} minutes'),
+                  leading: const Icon(Icons.timer_outlined),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class PresetEditor extends StatefulWidget {
+  const PresetEditor({super.key, required this.onSave});
+
+  final ValueChanged<FocusPreset> onSave;
+
+  @override
+  State<PresetEditor> createState() => _PresetEditorState();
+}
+
+class _PresetEditorState extends State<PresetEditor> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _durationController = TextEditingController(text: '25');
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _durationController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    widget.onSave(
+      FocusPreset(
+        name: _nameController.text.trim(),
+        durationMinutes: int.parse(_durationController.text.trim()),
+      ),
+    );
+    _nameController.clear();
+    _durationController.text = '25';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'Create or edit a preset',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose a name and a focus duration. You can change these before starting a session.',
+          ),
+          const SizedBox(height: 24),
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Preset name',
+                    border: OutlineInputBorder(),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  maxLength: 40,
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Enter a preset name'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _durationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Duration (minutes)',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final minutes = int.tryParse(value?.trim() ?? '');
+                    return minutes == null || minutes < 1 || minutes > 180
+                        ? 'Enter a whole number from 1 to 180'
+                        : null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _submit,
+                  child: const Text('Save preset'),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

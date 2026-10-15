@@ -8,7 +8,10 @@ void main() {
   setUpAll(sqfliteFfiInit);
   late PresetStore store;
   setUp(() async {
-    store = await PresetStore.open(databaseFactoryFfiNoIsolate, inMemoryDatabasePath);
+    store = await PresetStore.open(
+      databaseFactoryFfiNoIsolate,
+      inMemoryDatabasePath,
+    );
   });
   tearDown(() async => store.close());
 
@@ -19,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final sections = <String, String>{
-      'Presets': 'Choose a focus plan',
+      'Presets': 'Daily\nFocus',
       'Editor': 'Create or edit a preset',
       'Focus': 'Run a focus session',
       'History': 'Review your sessions',
@@ -27,7 +30,7 @@ void main() {
     };
 
     for (final entry in sections.entries) {
-      await tester.tap(find.widgetWithText(NavigationDestination, entry.key));
+      await tester.tap(find.byKey(Key('nav-${entry.key}')));
       await tester.pumpAndSettle();
       expect(find.text(entry.value), findsOneWidget);
     }
@@ -38,7 +41,7 @@ void main() {
   ) async {
     await tester.pumpWidget(AdaptiveFocusApp(store: store));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Create preset'));
+    await tester.tap(find.text('Add new  +'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Save preset'));
@@ -63,9 +66,28 @@ void main() {
     );
     await tester.tap(find.text('Save preset'));
     await tester.pumpAndSettle();
-    expect(find.text('Choose a focus plan'), findsOneWidget);
+    expect(find.text('Your Plan'), findsOneWidget);
     expect(find.text('Reading'), findsOneWidget);
-    expect(find.text('30 minutes'), findsOneWidget);
+    expect(find.text('30 min'), findsOneWidget);
     expect((await store.all()).single.name, 'Reading');
+  });
+
+  testWidgets('home fits a phone screen in both color modes', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpAndSettle();
+    expect(find.text('Daily\nFocus'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Switch to dark mode'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Switch to light mode'), findsOneWidget);
+
+    tester.view.physicalSize = const Size(320, 700);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 }

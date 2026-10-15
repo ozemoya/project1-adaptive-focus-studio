@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'home_dashboard.dart';
 import 'preset_store.dart';
 
 void main() => runApp(const AdaptiveFocusApp());
@@ -15,7 +16,8 @@ class AdaptiveFocusApp extends StatelessWidget {
       title: 'Adaptive Focus Studio',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B5E69)),
+        colorScheme: ColorScheme.fromSeed(seedColor: lavender),
+        scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
       home: AppShell(store: store),
@@ -34,6 +36,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
+  bool _isDark = false;
   List<FocusPreset> _presets = [];
   PresetStore? _store;
   bool _loading = true;
@@ -143,88 +146,100 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Adaptive Focus Studio')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _loadError != null
-          ? Center(child: Text(_loadError!))
-          : IndexedStack(
-              index: _selectedIndex,
-              children: [
-                _PresetList(
-                  presets: _presets,
-                  onCreate: () => setState(() => _selectedIndex = 1),
-                ),
-                PresetEditor(onSave: _savePreset),
-                for (final section in _sections.skip(2))
-                  _SectionPreview(section: section),
-              ],
-            ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-        },
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          for (final section in _sections)
-            NavigationDestination(
-              icon: Icon(section.icon),
-              selectedIcon: Icon(section.selectedIcon),
-              label: section.title,
-            ),
-        ],
+    final foreground = _isDark ? Colors.white : ink;
+    return Theme(
+      data: Theme.of(context).copyWith(
+        scaffoldBackgroundColor: _isDark ? Colors.black : Colors.white,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: lavender,
+          brightness: _isDark ? Brightness.dark : Brightness.light,
+        ),
       ),
-    );
-  }
-}
-
-class _PresetList extends StatelessWidget {
-  const _PresetList({required this.presets, required this.onCreate});
-
-  final List<FocusPreset> presets;
-  final VoidCallback onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Choose a focus plan',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Build a reusable plan for your next study session.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add),
-            label: const Text('Create preset'),
-          ),
-          const SizedBox(height: 20),
-          if (presets.isEmpty)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('No presets yet. Create one to get started.'),
+      child: Scaffold(
+        backgroundColor: _isDark ? Colors.black : Colors.white,
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+            ? Center(child: Text(_loadError!))
+            : IndexedStack(
+                index: _selectedIndex,
+                children: [
+                  HomeDashboard(
+                    presets: _presets,
+                    onCreate: () => setState(() => _selectedIndex = 1),
+                    onToggleTheme: () => setState(() => _isDark = !_isDark),
+                    isDark: _isDark,
+                  ),
+                  PresetEditor(onSave: _savePreset),
+                  for (final section in _sections.skip(2))
+                    _SectionPreview(section: section, isDark: _isDark),
+                ],
               ),
-            )
-          else
-            for (final preset in presets)
-              Card(
-                child: ListTile(
-                  title: Text(preset.name),
-                  subtitle: Text('${preset.durationMinutes} minutes'),
-                  leading: const Icon(Icons.timer_outlined),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Container(
+                height: 66,
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: _isDark ? Colors.white : ink,
+                  borderRadius: BorderRadius.circular(38),
+                ),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < _sections.length; index++)
+                      Expanded(
+                        child: Tooltip(
+                          message: _sections[index].title,
+                          child: Semantics(
+                            label: _sections[index].title,
+                            button: true,
+                            selected: _selectedIndex == index,
+                            child: InkWell(
+                              key: Key('nav-${_sections[index].title}'),
+                              onTap: () =>
+                                  setState(() => _selectedIndex = index),
+                              borderRadius: BorderRadius.circular(36),
+                              child: Container(
+                                height: 55,
+                                decoration: BoxDecoration(
+                                  color: _selectedIndex == index
+                                      ? (_isDark ? Colors.black : Colors.white)
+                                      : Colors.transparent,
+                                  shape: BoxShape.circle,
+                                  border: _selectedIndex == index
+                                      ? Border.all(
+                                          color: _isDark
+                                              ? Colors.black
+                                              : Colors.white,
+                                          width: 2,
+                                        )
+                                      : null,
+                                ),
+                                child: Icon(
+                                  _selectedIndex == index
+                                      ? _sections[index].selectedIcon
+                                      : _sections[index].icon,
+                                  color: _selectedIndex == index
+                                      ? foreground
+                                      : (_isDark ? ink : Colors.white),
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-        ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -267,19 +282,38 @@ class _PresetEditorState extends State<PresetEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = isDark ? Colors.white : ink;
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
         children: [
           Text(
             'Create or edit a preset',
-            style: Theme.of(context).textTheme.headlineMedium,
+            style: TextStyle(
+              color: foreground.withValues(alpha: 0.58),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Choose a name and a focus duration. You can change these before starting a session.',
+          const SizedBox(height: 12),
+          Text(
+            'A plan that fits\nyour day.',
+            style: TextStyle(
+              color: foreground,
+              fontSize: 38,
+              height: 0.98,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -2,
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          Text(
+            'Give your focus session a name and a length.',
+            style: TextStyle(color: foreground.withValues(alpha: 0.65)),
+          ),
+          const SizedBox(height: 31),
           Form(
             key: _formKey,
             child: Column(
@@ -287,9 +321,17 @@ class _PresetEditorState extends State<PresetEditor> {
               children: [
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Preset name',
-                    border: OutlineInputBorder(),
+                    hintText: 'e.g. Study sprint',
+                    filled: true,
+                    fillColor: isDark
+                        ? const Color(0xFF222126)
+                        : const Color(0xFFF1EAFD),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   textInputAction: TextInputAction.next,
                   maxLength: 40,
@@ -297,12 +339,19 @@ class _PresetEditorState extends State<PresetEditor> {
                       ? 'Enter a preset name'
                       : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 13),
                 TextFormField(
                   controller: _durationController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Duration (minutes)',
-                    border: OutlineInputBorder(),
+                    filled: true,
+                    fillColor: isDark
+                        ? const Color(0xFF222126)
+                        : const Color(0xFFF1EAFD),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
@@ -312,10 +361,26 @@ class _PresetEditorState extends State<PresetEditor> {
                         : null;
                   },
                 ),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: _submit,
-                  child: const Text('Save preset'),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: lavender,
+                      foregroundColor: ink,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    onPressed: _submit,
+                    child: const Text(
+                      'Save preset',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -343,13 +408,14 @@ class _Section {
 }
 
 class _SectionPreview extends StatelessWidget {
-  const _SectionPreview({required this.section});
+  const _SectionPreview({required this.section, required this.isDark});
 
   final _Section section;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final foreground = isDark ? Colors.white : ink;
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
@@ -360,19 +426,34 @@ class _SectionPreview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(section.selectedIcon, size: 48, color: colors.primary),
+                Icon(section.selectedIcon, size: 48, color: lavender),
                 const SizedBox(height: 20),
                 Text(
                   section.heading,
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.5,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   section.description,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: TextStyle(
+                    color: foreground.withValues(alpha: 0.65),
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 24),
-                const Chip(label: Text('Navigation prototype')),
+                Container(
+                  width: 90,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: lavender,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ],
             ),
           ),

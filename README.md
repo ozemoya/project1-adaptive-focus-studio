@@ -17,7 +17,7 @@ The Project One proposal has been approved. The Word proposal and signed team ac
 
 Myles Miller and Eziz Bagshiyev (undergraduate pathway).
 
-The initial screen sketches are in `proposal_assets/`. [Editable five-screen Figma wireframe](https://www.figma.com/design/rXtOvNPFTtUFlgaiAUvmAb)
+The initial screen sketches are in `proposal_assets/`. [Editable five-screen Figma wireframe](https://www.figma.com/design/rXtOvNPFTtUFlgaiAUvmAb) now also includes [light](https://www.figma.com/design/rXtOvNPFTtUFlgaiAUvmAb?node-id=8-2) and [dark](https://www.figma.com/design/rXtOvNPFTtUFlgaiAUvmAb?node-id=8-70) dashboard designs matching the updated app.
 
 ## Current build
 

@@ -23,7 +23,7 @@ void main() {
 
     final sections = <String, String>{
       'Presets': 'Daily\nFocus',
-      'Editor': 'Create or edit a preset',
+      'Editor': 'Create a preset',
       'Focus': 'Run a focus session',
       'History': 'Review your sessions',
       'Settings': 'Choose local preferences',

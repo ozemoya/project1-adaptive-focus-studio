@@ -114,7 +114,7 @@ class _AppShellState extends State<AppShell> {
     ),
     _Section(
       title: 'Editor',
-      heading: 'Create or edit a preset',
+      heading: 'Create a preset',
       description: 'Name, mood, and duration controls belong on this screen.',
       icon: Icons.edit_outlined,
       selectedIcon: Icons.edit,
@@ -289,7 +289,7 @@ class _PresetEditorState extends State<PresetEditor> {
         padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
         children: [
           Text(
-            'Create or edit a preset',
+            'Create a preset',
             style: TextStyle(
               color: foreground.withValues(alpha: 0.58),
               fontSize: 12,
@@ -321,6 +321,7 @@ class _PresetEditorState extends State<PresetEditor> {
               children: [
                 TextFormField(
                   controller: _nameController,
+                  style: TextStyle(color: foreground),
                   decoration: InputDecoration(
                     labelText: 'Preset name',
                     hintText: 'e.g. Study sprint',
@@ -342,6 +343,7 @@ class _PresetEditorState extends State<PresetEditor> {
                 const SizedBox(height: 13),
                 TextFormField(
                   controller: _durationController,
+                  style: TextStyle(color: foreground),
                   decoration: InputDecoration(
                     labelText: 'Duration (minutes)',
                     filled: true,

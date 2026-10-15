@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'preset_store.dart';
+
 void main() => runApp(const AdaptiveFocusApp());
 
 class AdaptiveFocusApp extends StatelessWidget {
-  const AdaptiveFocusApp({super.key});
+  const AdaptiveFocusApp({super.key, this.store});
+
+  final PresetStore? store;
 
   @override
   Widget build(BuildContext context) {
@@ -14,13 +18,15 @@ class AdaptiveFocusApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1B5E69)),
         useMaterial3: true,
       ),
-      home: const AppShell(),
+      home: AppShell(store: store),
     );
   }
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.store});
+
+  final PresetStore? store;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -28,16 +34,71 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
-  final List<FocusPreset> _presets = [];
+  List<FocusPreset> _presets = [];
+  PresetStore? _store;
+  bool _loading = true;
+  String? _loadError;
 
-  void _savePreset(FocusPreset preset) {
-    setState(() {
-      _presets.add(preset);
-      _selectedIndex = 0;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${preset.name} saved for this session')),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadPresets();
+  }
+
+  Future<void> _loadPresets() async {
+    try {
+      final store = widget.store ?? await PresetStore.openDevice();
+      final presets = await store.all();
+      if (!mounted) {
+        if (widget.store == null) await store.close();
+        return;
+      }
+      setState(() {
+        _store = store;
+        _presets = presets;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadError = 'Unable to load presets. Restart the app and try again.';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.store == null) _store?.close();
+    super.dispose();
+  }
+
+  Future<bool> _savePreset(FocusPreset preset) async {
+    final store = _store;
+    if (store == null) return false;
+    try {
+      await store.create(preset);
+      final presets = await store.all();
+      if (!mounted) return false;
+      setState(() {
+        _presets = presets;
+        _selectedIndex = 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${preset.name} saved on this device')),
+      );
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save the preset. Try again.'),
+          ),
+        );
+      }
+      return false;
+    }
   }
 
   static const _sections = <_Section>[
@@ -84,18 +145,22 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Adaptive Focus Studio')),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _PresetList(
-            presets: _presets,
-            onCreate: () => setState(() => _selectedIndex = 1),
-          ),
-          PresetEditor(onSave: _savePreset),
-          for (final section in _sections.skip(2))
-            _SectionPreview(section: section),
-        ],
-      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(child: Text(_loadError!))
+          : IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _PresetList(
+                  presets: _presets,
+                  onCreate: () => setState(() => _selectedIndex = 1),
+                ),
+                PresetEditor(onSave: _savePreset),
+                for (final section in _sections.skip(2))
+                  _SectionPreview(section: section),
+              ],
+            ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
@@ -113,13 +178,6 @@ class _AppShellState extends State<AppShell> {
       ),
     );
   }
-}
-
-class FocusPreset {
-  const FocusPreset({required this.name, required this.durationMinutes});
-
-  final String name;
-  final int durationMinutes;
 }
 
 class _PresetList extends StatelessWidget {
@@ -175,7 +233,7 @@ class _PresetList extends StatelessWidget {
 class PresetEditor extends StatefulWidget {
   const PresetEditor({super.key, required this.onSave});
 
-  final ValueChanged<FocusPreset> onSave;
+  final Future<bool> Function(FocusPreset) onSave;
 
   @override
   State<PresetEditor> createState() => _PresetEditorState();
@@ -193,16 +251,18 @@ class _PresetEditorState extends State<PresetEditor> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    widget.onSave(
+    final saved = await widget.onSave(
       FocusPreset(
         name: _nameController.text.trim(),
         durationMinutes: int.parse(_durationController.text.trim()),
       ),
     );
-    _nameController.clear();
-    _durationController.text = '25';
+    if (saved && mounted) {
+      _nameController.clear();
+      _durationController.text = '25';
+    }
   }
 
   @override

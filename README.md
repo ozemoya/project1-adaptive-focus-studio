@@ -21,5 +21,5 @@ The initial screen sketches are in `proposal_assets/`. [Editable five-screen Fig
 
 ## Current build
 
-The five-screen navigation is working. The dashboard now has an empty state and a preset list, and the editor validates a preset name and a whole-number duration from 1 to 180 minutes. Saved presets currently remain in memory only; SQLite storage and editing existing presets are the next implementation steps. Run `flutter test` from `app/` to check navigation and preset validation.
+The five-screen navigation is working. The dashboard has an empty state and a preset list, and the editor validates a preset name and a whole-number duration from 1 to 180 minutes. New presets are now saved locally in SQLite and loaded again at startup. The data layer also supports update and delete, while editing and deleting through the interface remain to be built. Run `flutter test` from `app/` to check navigation, validation, and SQLite CRUD. No Android emulator is currently connected, so device validation is still pending.
 

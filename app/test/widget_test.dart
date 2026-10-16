@@ -90,4 +90,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('saved plans can be edited and deleted from the dashboard', (
+    tester,
+  ) async {
+    final created = await store.create(
+      const FocusPreset(name: 'Reading', durationMinutes: 30),
+    );
+    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Reading'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit a preset'), findsOneWidget);
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Preset name'),
+      'Writing',
+    );
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect((await store.all()).single.name, 'Writing');
+    expect((await store.all()).single.id, created.id);
+
+    await tester.tap(find.byKey(Key('plan-menu-${created.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete plan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this plan?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(await store.all(), isEmpty);
+  });
 }

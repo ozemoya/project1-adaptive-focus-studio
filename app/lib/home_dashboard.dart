@@ -15,12 +15,16 @@ class HomeDashboard extends StatelessWidget {
     super.key,
     required this.presets,
     required this.onCreate,
+    required this.onEdit,
+    required this.onDelete,
     required this.onToggleTheme,
     required this.isDark,
   });
 
   final List<FocusPreset> presets;
   final VoidCallback onCreate;
+  final ValueChanged<FocusPreset> onEdit;
+  final ValueChanged<FocusPreset> onDelete;
   final VoidCallback onToggleTheme;
   final bool isDark;
 
@@ -220,7 +224,10 @@ class HomeDashboard extends StatelessWidget {
                     title: featured?.name ?? 'Deep Focus',
                     minutes: featured?.durationMinutes ?? 25,
                     icon: Icons.notifications_active_rounded,
-                    onTap: onCreate,
+                    onTap: featured == null ? onCreate : () => onEdit(featured),
+                    preset: featured,
+                    onEdit: onEdit,
+                    onDelete: onDelete,
                     footer: featured == null
                         ? 'Build your first plan'
                         : 'Saved on this device',
@@ -234,13 +241,16 @@ class HomeDashboard extends StatelessWidget {
                       Expanded(
                         child: _PlanCard(
                           color: periwinkle,
-                          label: second == null
-                              ? 'A LITTLE RESET'
-                              : 'SAVED PRESET',
+                          label: second == null ? 'A LITTLE RESET' : 'SAVED',
                           title: second?.name ?? 'Quick Reset',
                           minutes: second?.durationMinutes ?? 10,
                           icon: Icons.cloud_rounded,
-                          onTap: onCreate,
+                          onTap: second == null
+                              ? onCreate
+                              : () => onEdit(second),
+                          preset: second,
+                          onEdit: onEdit,
+                          onDelete: onDelete,
                           compact: true,
                         ),
                       ),
@@ -307,12 +317,17 @@ class HomeDashboard extends StatelessWidget {
             for (final preset in presets.skip(2))
               ListTile(
                 contentPadding: EdgeInsets.zero,
+                onTap: () => onEdit(preset),
                 title: Text(preset.name, style: TextStyle(color: foreground)),
                 subtitle: Text(
                   '${preset.durationMinutes} min',
                   style: TextStyle(color: foreground.withValues(alpha: 0.6)),
                 ),
-                trailing: Icon(Icons.arrow_outward, color: foreground),
+                trailing: _PresetMenu(
+                  preset: preset,
+                  onEdit: onEdit,
+                  onDelete: onDelete,
+                ),
               ),
           ],
         ],
@@ -378,6 +393,9 @@ class _PlanCard extends StatelessWidget {
     required this.minutes,
     required this.icon,
     required this.onTap,
+    this.preset,
+    this.onEdit,
+    this.onDelete,
     this.compact = false,
     this.footer,
   });
@@ -387,6 +405,9 @@ class _PlanCard extends StatelessWidget {
   final int minutes;
   final IconData icon;
   final VoidCallback onTap;
+  final FocusPreset? preset;
+  final ValueChanged<FocusPreset>? onEdit;
+  final ValueChanged<FocusPreset>? onDelete;
   final bool compact;
   final String? footer;
 
@@ -467,9 +488,46 @@ class _PlanCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (preset != null && onEdit != null && onDelete != null)
+              Positioned(
+                top: 3,
+                right: 2,
+                child: _PresetMenu(
+                  preset: preset!,
+                  onEdit: onEdit!,
+                  onDelete: onDelete!,
+                ),
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PresetMenu extends StatelessWidget {
+  const _PresetMenu({
+    required this.preset,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final FocusPreset preset;
+  final ValueChanged<FocusPreset> onEdit;
+  final ValueChanged<FocusPreset> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      key: Key('plan-menu-${preset.id}'),
+      tooltip: 'More options for ${preset.name}',
+      icon: const Icon(Icons.more_horiz, color: ink, size: 21),
+      onSelected: (action) =>
+          action == 'edit' ? onEdit(preset) : onDelete(preset),
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'edit', child: Text('Edit plan')),
+        PopupMenuItem(value: 'delete', child: Text('Delete plan')),
+      ],
     );
   }
 }

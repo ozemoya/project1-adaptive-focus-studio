@@ -38,6 +38,7 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _isDark = false;
   List<FocusPreset> _presets = [];
+  FocusPreset? _editingPreset;
   PresetStore? _store;
   bool _loading = true;
   String? _loadError;
@@ -81,11 +82,16 @@ class _AppShellState extends State<AppShell> {
     final store = _store;
     if (store == null) return false;
     try {
-      await store.create(preset);
+      if (preset.id == null) {
+        await store.create(preset);
+      } else {
+        await store.update(preset);
+      }
       final presets = await store.all();
       if (!mounted) return false;
       setState(() {
         _presets = presets;
+        _editingPreset = null;
         _selectedIndex = 0;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +107,53 @@ class _AppShellState extends State<AppShell> {
         );
       }
       return false;
+    }
+  }
+
+  void _openEditor([FocusPreset? preset]) {
+    setState(() {
+      _editingPreset = preset;
+      _selectedIndex = 1;
+    });
+  }
+
+  Future<void> _deletePreset(FocusPreset preset) async {
+    final id = preset.id;
+    final store = _store;
+    if (id == null || store == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this plan?'),
+        content: Text('${preset.name} will be removed from this device.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep plan'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await store.delete(id);
+      final presets = await store.all();
+      if (!mounted) return;
+      setState(() => _presets = presets);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('${preset.name} deleted')));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete the plan. Try again.'),
+          ),
+        );
+      }
     }
   }
 
@@ -166,11 +219,17 @@ class _AppShellState extends State<AppShell> {
                 children: [
                   HomeDashboard(
                     presets: _presets,
-                    onCreate: () => setState(() => _selectedIndex = 1),
+                    onCreate: () => _openEditor(),
+                    onEdit: _openEditor,
+                    onDelete: _deletePreset,
                     onToggleTheme: () => setState(() => _isDark = !_isDark),
                     isDark: _isDark,
                   ),
-                  PresetEditor(onSave: _savePreset),
+                  PresetEditor(
+                    key: ValueKey(_editingPreset?.id ?? 'new'),
+                    initialPreset: _editingPreset,
+                    onSave: _savePreset,
+                  ),
                   for (final section in _sections.skip(2))
                     _SectionPreview(section: section, isDark: _isDark),
                 ],
@@ -201,8 +260,13 @@ class _AppShellState extends State<AppShell> {
                             selected: _selectedIndex == index,
                             child: InkWell(
                               key: Key('nav-${_sections[index].title}'),
-                              onTap: () =>
-                                  setState(() => _selectedIndex = index),
+                              onTap: () {
+                                if (index == 1) {
+                                  _openEditor();
+                                } else {
+                                  setState(() => _selectedIndex = index);
+                                }
+                              },
                               borderRadius: BorderRadius.circular(36),
                               child: Container(
                                 height: 55,
@@ -246,9 +310,10 @@ class _AppShellState extends State<AppShell> {
 }
 
 class PresetEditor extends StatefulWidget {
-  const PresetEditor({super.key, required this.onSave});
+  const PresetEditor({super.key, required this.onSave, this.initialPreset});
 
   final Future<bool> Function(FocusPreset) onSave;
+  final FocusPreset? initialPreset;
 
   @override
   State<PresetEditor> createState() => _PresetEditorState();
@@ -256,8 +321,12 @@ class PresetEditor extends StatefulWidget {
 
 class _PresetEditorState extends State<PresetEditor> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _durationController = TextEditingController(text: '25');
+  late final _nameController = TextEditingController(
+    text: widget.initialPreset?.name ?? '',
+  );
+  late final _durationController = TextEditingController(
+    text: '${widget.initialPreset?.durationMinutes ?? 25}',
+  );
 
   @override
   void dispose() {
@@ -270,6 +339,7 @@ class _PresetEditorState extends State<PresetEditor> {
     if (!_formKey.currentState!.validate()) return;
     final saved = await widget.onSave(
       FocusPreset(
+        id: widget.initialPreset?.id,
         name: _nameController.text.trim(),
         durationMinutes: int.parse(_durationController.text.trim()),
       ),
@@ -289,7 +359,7 @@ class _PresetEditorState extends State<PresetEditor> {
         padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
         children: [
           Text(
-            'Create a preset',
+            widget.initialPreset == null ? 'Create a preset' : 'Edit a preset',
             style: TextStyle(
               color: foreground.withValues(alpha: 0.58),
               fontSize: 12,
@@ -375,8 +445,10 @@ class _PresetEditorState extends State<PresetEditor> {
                       ),
                     ),
                     onPressed: _submit,
-                    child: const Text(
-                      'Save preset',
+                    child: Text(
+                      widget.initialPreset == null
+                          ? 'Save preset'
+                          : 'Save changes',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 16,

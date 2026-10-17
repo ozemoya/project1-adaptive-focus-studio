@@ -38,6 +38,22 @@ void main() {
       ),
     );
     expect((await reopened.sessions()).single.completedMinutes, 23);
+    expect(
+      await reopened.updateSession(
+        FocusSession(
+          id: finished.id,
+          presetName: 'Writing',
+          mood: 'Tired',
+          plannedMinutes: 45,
+          completedMinutes: 20,
+          finishedAt: finished.finishedAt,
+          isManual: true,
+        ),
+      ),
+      1,
+    );
+    expect((await reopened.sessions()).single.isManual, isTrue);
+    expect((await reopened.sessions()).single.completedMinutes, 20);
     expect(await reopened.deleteSession(finished.id!), 1);
     expect(await reopened.sessions(), isEmpty);
     expect(await reopened.delete(created.id!), 1);

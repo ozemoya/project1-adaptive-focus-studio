@@ -28,10 +28,10 @@ void main() {
 
     final sections = <String, String>{
       'Presets': 'Daily\nFocus',
-      'Editor': 'Create a preset',
-      'Focus': 'Run a focus session',
-      'History': 'Review your sessions',
-      'Settings': 'Your settings.',
+      'Editor': 'Make a plan',
+      'Focus': 'Time to focus',
+      'History': 'Your progress',
+      'Settings': 'Make it yours',
     };
 
     for (final entry in sections.entries) {
@@ -44,6 +44,7 @@ void main() {
   testWidgets('preset editor rejects invalid values and shows a saved preset', (
     tester,
   ) async {
+    _useTallPhone(tester);
     await tester.pumpWidget(
       AdaptiveFocusApp(store: store, preferences: preferences),
     );
@@ -51,7 +52,7 @@ void main() {
     await tester.tap(find.text('Add new  +'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Save preset'));
+    await tester.tap(find.text('Save plan'));
     await tester.pumpAndSettle();
     expect(find.text('Enter a preset name'), findsOneWidget);
 
@@ -63,7 +64,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Duration (minutes)'),
       '0',
     );
-    await tester.tap(find.text('Save preset'));
+    await tester.tap(find.text('Save plan'));
     await tester.pumpAndSettle();
     expect(find.text('Enter a whole number from 1 to 180'), findsOneWidget);
 
@@ -71,7 +72,7 @@ void main() {
       find.widgetWithText(TextFormField, 'Duration (minutes)'),
       '30',
     );
-    await tester.tap(find.text('Save preset'));
+    await tester.tap(find.text('Save plan'));
     await tester.pumpAndSettle();
     expect(find.text('Your Plan'), findsOneWidget);
     expect(find.text('Reading'), findsOneWidget);
@@ -103,6 +104,7 @@ void main() {
   testWidgets('saved plans can be edited and deleted from the dashboard', (
     tester,
   ) async {
+    _useTallPhone(tester);
     final created = await store.create(
       const FocusPreset(name: 'Reading', durationMinutes: 30),
     );
@@ -111,9 +113,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Reading'));
+    await tester.tap(find.byKey(Key('plan-menu-${created.id}')));
     await tester.pumpAndSettle();
-    expect(find.text('Edit a preset'), findsOneWidget);
+    await tester.tap(find.text('Edit plan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit preset'), findsOneWidget);
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Preset name'),
       'Writing',
@@ -136,6 +140,7 @@ void main() {
   testWidgets('settings persist and set the next preset duration', (
     tester,
   ) async {
+    _useTallPhone(tester);
     await tester.pumpWidget(
       AdaptiveFocusApp(store: store, preferences: preferences),
     );
@@ -147,8 +152,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('45 min').last);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Dark mode'));
     await tester.tap(find.text('Dark mode'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Reduce motion'));
     await tester.tap(find.text('Reduce motion'));
     await tester.pumpAndSettle();
 
@@ -166,6 +173,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, '45'), findsOneWidget);
   });
+
+  testWidgets('a selected plan runs and saves a session in history', (
+    tester,
+  ) async {
+    _useTallPhone(tester);
+    await store.create(
+      const FocusPreset(
+        name: 'Biology review',
+        durationMinutes: 25,
+        mood: 'Calm',
+      ),
+    );
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Biology review'));
+    await tester.pumpAndSettle();
+    expect(find.text('Time to focus'), findsOneWidget);
+    expect(find.text('25:00'), findsOneWidget);
+
+    await tester.tap(find.text('Start session'));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Pause'), findsOneWidget);
+    await tester.tap(find.text('Pause'));
+    await tester.pump();
+    expect(find.text('Resume'), findsOneWidget);
+    await tester.ensureVisible(find.text('Finish'));
+    await tester.pump();
+    await tester.tap(find.text('Finish'));
+    await tester.pumpAndSettle();
+    expect((await store.sessions()).single.presetName, 'Biology review');
+
+    await tester.tap(find.byKey(const Key('nav-History')));
+    await tester.pumpAndSettle();
+    expect(find.text('Biology review'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('delete-session-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete this session?'), findsOneWidget);
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(await store.sessions(), isEmpty);
+  });
+}
+
+void _useTallPhone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 1200);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 class _MemoryPreferences implements AppPreferences {

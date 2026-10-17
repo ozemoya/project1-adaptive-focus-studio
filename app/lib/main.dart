@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'app_preferences.dart';
+import 'focus_screen.dart';
+import 'history_screen.dart';
 import 'home_dashboard.dart';
 import 'preset_store.dart';
+import 'studio_components.dart';
 
 void main() => runApp(const AdaptiveFocusApp());
 
@@ -43,7 +46,9 @@ class _AppShellState extends State<AppShell> {
   bool _reducedMotion = false;
   int _defaultMinutes = 25;
   List<FocusPreset> _presets = [];
+  List<FocusSession> _sessions = [];
   FocusPreset? _editingPreset;
+  FocusPreset? _activePreset;
   PresetStore? _store;
   late final AppPreferences _preferences =
       widget.preferences ?? DeviceAppPreferences();
@@ -121,6 +126,7 @@ class _AppShellState extends State<AppShell> {
     try {
       final store = widget.store ?? await PresetStore.openDevice();
       final presets = await store.all();
+      final sessions = await store.sessions();
       if (!mounted) {
         if (widget.store == null) await store.close();
         return;
@@ -128,6 +134,7 @@ class _AppShellState extends State<AppShell> {
       setState(() {
         _store = store;
         _presets = presets;
+        _sessions = sessions;
         _loading = false;
       });
     } catch (_) {
@@ -185,6 +192,74 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  void _openFocus(FocusPreset preset) {
+    setState(() {
+      _activePreset = preset;
+      _selectedIndex = 2;
+    });
+  }
+
+  Future<bool> _saveSession(FocusSession session) async {
+    try {
+      if (session.id == null) {
+        await _store!.createSession(session);
+      } else {
+        await _store!.updateSession(session);
+      }
+      final sessions = await _store!.sessions();
+      if (!mounted) return false;
+      setState(() => _sessions = sessions);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Session saved to history')));
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save this session. Try again.'),
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<void> _deleteSession(FocusSession session) async {
+    if (session.id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete this session?'),
+        content: Text('${session.presetName} will be removed from history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep session'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _store!.deleteSession(session.id!);
+      final sessions = await _store!.sessions();
+      if (mounted) setState(() => _sessions = sessions);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete this session. Try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _deletePreset(FocusPreset preset) async {
     final id = preset.id;
     final store = _store;
@@ -211,7 +286,14 @@ class _AppShellState extends State<AppShell> {
       await store.delete(id);
       final presets = await store.all();
       if (!mounted) return;
-      setState(() => _presets = presets);
+      setState(() {
+        _presets = presets;
+        if (_editingPreset?.id == id) {
+          _editingPreset = null;
+          _selectedIndex = 0;
+        }
+        if (_activePreset?.id == id) _activePreset = null;
+      });
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('${preset.name} deleted')));
     } catch (_) {
@@ -228,38 +310,26 @@ class _AppShellState extends State<AppShell> {
   static const _sections = <_Section>[
     _Section(
       title: 'Presets',
-      heading: 'Choose a focus plan',
-      description: 'Your saved presets and a quick summary will appear here.',
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
     ),
     _Section(
       title: 'Editor',
-      heading: 'Create a preset',
-      description: 'Name, mood, and duration controls belong on this screen.',
       icon: Icons.edit_outlined,
       selectedIcon: Icons.edit,
     ),
     _Section(
       title: 'Focus',
-      heading: 'Run a focus session',
-      description:
-          'The timer, pause control, and duration suggestion belong here.',
       icon: Icons.timer_outlined,
       selectedIcon: Icons.timer,
     ),
     _Section(
       title: 'History',
-      heading: 'Review your sessions',
-      description:
-          'Saved sessions, filters, and insights belong on this screen.',
       icon: Icons.history_outlined,
       selectedIcon: Icons.history,
     ),
     _Section(
       title: 'Settings',
-      heading: 'Choose local preferences',
-      description: 'Default duration and reduced-motion controls belong here.',
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
     ),
@@ -289,6 +359,7 @@ class _AppShellState extends State<AppShell> {
                     presets: _presets,
                     onCreate: () => _openEditor(),
                     onEdit: _openEditor,
+                    onStart: _openFocus,
                     onDelete: _deletePreset,
                     onToggleTheme: () => _setDarkMode(!_isDark),
                     isDark: _isDark,
@@ -298,9 +369,20 @@ class _AppShellState extends State<AppShell> {
                     initialPreset: _editingPreset,
                     defaultMinutes: _defaultMinutes,
                     onSave: _savePreset,
+                    onCancel: () => setState(() => _selectedIndex = 0),
+                    onDelete: _deletePreset,
                   ),
-                  for (final section in _sections.skip(2).take(2))
-                    _SectionPreview(section: section, isDark: _isDark),
+                  FocusScreen(
+                    preset: _activePreset,
+                    sessions: _sessions,
+                    onFinish: _saveSession,
+                    onChoosePlan: () => setState(() => _selectedIndex = 0),
+                  ),
+                  HistoryScreen(
+                    sessions: _sessions,
+                    onDelete: _deleteSession,
+                    onSave: _saveSession,
+                  ),
                   _SettingsScreen(
                     isDark: _isDark,
                     defaultMinutes: _defaultMinutes,
@@ -390,11 +472,15 @@ class PresetEditor extends StatefulWidget {
   const PresetEditor({
     super.key,
     required this.onSave,
+    required this.onCancel,
+    required this.onDelete,
     required this.defaultMinutes,
     this.initialPreset,
   });
 
   final Future<bool> Function(FocusPreset) onSave;
+  final VoidCallback onCancel;
+  final ValueChanged<FocusPreset> onDelete;
   final int defaultMinutes;
   final FocusPreset? initialPreset;
 
@@ -404,6 +490,7 @@ class PresetEditor extends StatefulWidget {
 
 class _PresetEditorState extends State<PresetEditor> {
   final _formKey = GlobalKey<FormState>();
+  late String _mood = widget.initialPreset?.mood ?? 'Calm';
   late final _nameController = TextEditingController(
     text: widget.initialPreset?.name ?? '',
   );
@@ -425,6 +512,7 @@ class _PresetEditorState extends State<PresetEditor> {
         id: widget.initialPreset?.id,
         name: _nameController.text.trim(),
         durationMinutes: int.parse(_durationController.text.trim()),
+        mood: _mood,
       ),
     );
     if (saved && mounted) {
@@ -437,37 +525,39 @@ class _PresetEditorState extends State<PresetEditor> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final foreground = isDark ? Colors.white : ink;
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
-        children: [
-          Text(
-            widget.initialPreset == null ? 'Create a preset' : 'Edit a preset',
-            style: TextStyle(
-              color: foreground.withValues(alpha: 0.58),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
+    return StudioPage(
+      eyebrow: widget.initialPreset == null ? 'Preset editor' : 'Edit preset',
+      title: 'Make a plan',
+      subtitle: '',
+      children: [
+        const StudioCard(
+          color: lavender,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your next\nsmall step.',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 33,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.7,
+                ),
+              ),
+              SizedBox(height: 13),
+              Text(
+                'Create or edit a reusable focus preset.',
+                style: TextStyle(color: ink, fontSize: 13),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'A plan that fits\nyour day.',
-            style: TextStyle(
-              color: foreground,
-              fontSize: 38,
-              height: 0.98,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Give your focus session a name and a length.',
-            style: TextStyle(color: foreground.withValues(alpha: 0.65)),
-          ),
-          const SizedBox(height: 31),
-          Form(
+        ),
+        const SizedBox(height: 16),
+        StudioCard(
+          color: isDark ? const Color(0xFF2B2534) : Colors.white,
+          borderColor: isDark ? Colors.white24 : const Color(0xFFE7E1ED),
+          child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -479,9 +569,7 @@ class _PresetEditorState extends State<PresetEditor> {
                     labelText: 'Preset name',
                     hintText: 'e.g. Study sprint',
                     filled: true,
-                    fillColor: isDark
-                        ? const Color(0xFF222126)
-                        : const Color(0xFFF1EAFD),
+                    fillColor: isDark ? const Color(0xFF222126) : Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(17),
                       borderSide: BorderSide.none,
@@ -494,15 +582,33 @@ class _PresetEditorState extends State<PresetEditor> {
                       : null,
                 ),
                 const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  initialValue: _mood,
+                  decoration: InputDecoration(
+                    labelText: 'Mood',
+                    filled: true,
+                    fillColor: isDark ? const Color(0xFF222126) : Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(17),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  items: const ['Calm', 'Energized', 'Tired']
+                      .map(
+                        (mood) =>
+                            DropdownMenuItem(value: mood, child: Text(mood)),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => _mood = value ?? 'Calm'),
+                ),
+                const SizedBox(height: 13),
                 TextFormField(
                   controller: _durationController,
                   style: TextStyle(color: foreground),
                   decoration: InputDecoration(
                     labelText: 'Duration (minutes)',
                     filled: true,
-                    fillColor: isDark
-                        ? const Color(0xFF222126)
-                        : const Color(0xFFF1EAFD),
+                    fillColor: isDark ? const Color(0xFF222126) : Colors.white,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(17),
                       borderSide: BorderSide.none,
@@ -517,33 +623,49 @@ class _PresetEditorState extends State<PresetEditor> {
                   },
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  height: 56,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: lavender,
-                      foregroundColor: ink,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: StudioButton(
+                        color: ink,
+                        label: widget.initialPreset == null
+                            ? 'Save plan'
+                            : 'Save changes',
+                        onPressed: _submit,
                       ),
                     ),
-                    onPressed: _submit,
-                    child: Text(
-                      widget.initialPreset == null
-                          ? 'Save preset'
-                          : 'Save changes',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: SizedBox(
+                        height: 52,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFF2ECFA),
+                            foregroundColor: ink,
+                          ),
+                          onPressed: widget.onCancel,
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
+                if (widget.initialPreset != null)
+                  TextButton.icon(
+                    onPressed: () => widget.onDelete(widget.initialPreset!),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Delete preset'),
+                  ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -551,73 +673,13 @@ class _PresetEditorState extends State<PresetEditor> {
 class _Section {
   const _Section({
     required this.title,
-    required this.heading,
-    required this.description,
     required this.icon,
     required this.selectedIcon,
   });
 
   final String title;
-  final String heading;
-  final String description;
   final IconData icon;
   final IconData selectedIcon;
-}
-
-class _SectionPreview extends StatelessWidget {
-  const _SectionPreview({required this.section, required this.isDark});
-
-  final _Section section;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = isDark ? Colors.white : ink;
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(section.selectedIcon, size: 48, color: lavender),
-                const SizedBox(height: 20),
-                Text(
-                  section.heading,
-                  style: TextStyle(
-                    color: foreground,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  section.description,
-                  style: TextStyle(
-                    color: foreground.withValues(alpha: 0.65),
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  width: 90,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: lavender,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _SettingsScreen extends StatelessWidget {
@@ -639,70 +701,152 @@ class _SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = isDark ? Colors.white : ink;
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
-        children: [
-          Text(
-            'MAKE IT YOURS',
-            style: TextStyle(
-              color: foreground.withValues(alpha: 0.58),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
+    return StudioPage(
+      eyebrow: 'Settings',
+      title: 'Make it yours',
+      subtitle: '',
+      children: [
+        const StudioCard(
+          color: lavender,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Your focus.\nYour pace.',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 33,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                  letterSpacing: -1.5,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Preferences stay on this device.',
+                style: TextStyle(color: ink),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Your settings.',
-            style: TextStyle(
-              color: foreground,
-              fontSize: 38,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -2,
-            ),
+        ),
+        const SizedBox(height: 16),
+        StudioCard(
+          color: isDark ? const Color(0xFF242128) : Colors.white,
+          borderColor: isDark ? Colors.white24 : const Color(0xFFE7E1ED),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Default duration',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                trailing: DropdownButton<int>(
+                  value: defaultMinutes,
+                  onChanged: (value) {
+                    if (value != null) onDefaultMinutesChanged(value);
+                  },
+                  items: const [15, 25, 30, 45, 60]
+                      .map(
+                        (minutes) => DropdownMenuItem(
+                          value: minutes,
+                          child: Text('$minutes min'),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('10 minutes', style: TextStyle(fontSize: 11)),
+                  Text('60 minutes', style: TextStyle(fontSize: 11)),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Saved on this device.',
-            style: TextStyle(color: foreground.withValues(alpha: 0.65)),
+        ),
+        const SizedBox(height: 12),
+        StudioCard(
+          color: isDark ? const Color(0xFF242128) : Colors.white,
+          borderColor: isDark ? Colors.white24 : const Color(0xFFE7E1ED),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Reduce motion',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Limit optional interface animation.'),
+                value: reducedMotion,
+                onChanged: onReducedMotionChanged,
+              ),
+            ],
           ),
-          const SizedBox(height: 28),
-          SwitchListTile.adaptive(
-            title: const Text('Dark mode'),
-            subtitle: const Text('Use a darker screen palette'),
-            value: isDark,
-            onChanged: onDarkModeChanged,
+        ),
+        const SizedBox(height: 12),
+        StudioCard(
+          color: isDark ? const Color(0xFF242128) : Colors.white,
+          borderColor: isDark ? Colors.white24 : const Color(0xFFE7E1ED),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Offline storage',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              const Text('SQLite records and device preferences.'),
+            ],
           ),
-          const Divider(),
-          ListTile(
-            title: const Text('Default focus length'),
-            subtitle: const Text('Used when you create a new plan'),
-            trailing: DropdownButton<int>(
-              value: defaultMinutes,
-              onChanged: (value) {
-                if (value != null) onDefaultMinutesChanged(value);
-              },
-              items: const [15, 25, 30, 45, 60]
-                  .map(
-                    (minutes) => DropdownMenuItem(
-                      value: minutes,
-                      child: Text('$minutes min'),
-                    ),
-                  )
-                  .toList(),
-            ),
+        ),
+        const SizedBox(height: 12),
+        StudioCard(
+          color: isDark ? const Color(0xFF242128) : Colors.white,
+          borderColor: isDark ? Colors.white24 : const Color(0xFFE7E1ED),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Dark mode',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Use a darker screen palette'),
+                value: isDark,
+                onChanged: onDarkModeChanged,
+              ),
+            ],
           ),
-          const Divider(),
-          SwitchListTile.adaptive(
-            title: const Text('Reduce motion'),
-            subtitle: const Text('Use fewer animations where possible'),
-            value: reducedMotion,
-            onChanged: onReducedMotionChanged,
+        ),
+        const SizedBox(height: 12),
+        const StudioCard(
+          color: Color(0xFFF2ECFA),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Saved automatically',
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 7),
+              Text(
+                'Your choices remain after restarting.',
+                style: TextStyle(color: ink),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

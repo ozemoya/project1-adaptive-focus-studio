@@ -21,7 +21,9 @@ The initial screen sketches are in `proposal_assets/`. [Editable five-screen Fig
 
 ## Current build
 
-The five-screen navigation is working. The dashboard has an empty state and a preset list, and the editor validates a preset name and a whole-number duration from 1 to 180 minutes. Presets are saved locally in SQLite and loaded again at startup. Tapping a saved plan opens it for editing; its menu offers a confirmed delete action. The Settings screen saves dark mode, default plan duration, and reduced motion preferences on the device; the default duration fills the next new preset. Run `flutter test` from `app/` to check navigation, validation, settings persistence, and SQLite CRUD. The dashboard and editor have been checked on an Android emulator.
+All five navigation destinations have working layouts. Presets shows saved plans and an empty state. Editor validates name, mood, and duration, and supports saving, canceling, and confirmed deletion. Selecting a saved plan opens Focus, where the timer can start, pause, resume, finish, or reset after confirmation. Finished sessions are stored in SQLite and appear in History with a mood filter, average, and confirmed deletion. Settings saves dark mode, default plan duration, and reduced motion preferences on the device; the default duration fills the next new preset. Run `flutter test` from `app/` to check navigation, validation, the plan-to-history flow, settings persistence, and SQLite CRUD.
 
 The dashboard now uses a compact lavender focus banner, a seven-day strip, warm plan cards, and a rounded five-destination navigation bar. The header switches between light and dark palettes. The flower artwork is drawn in Flutter; the reference image is not bundled into the app.
+
+The editable Figma file currently contains light and dark dashboard reference frames. Editor, Focus, History, and Settings use their matching colors, type scale, rounded cards, and navigation treatment, with content guided by the five proposal wireframes in `proposal_assets/`.
 

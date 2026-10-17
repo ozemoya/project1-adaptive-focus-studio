@@ -16,6 +16,7 @@ class HomeDashboard extends StatelessWidget {
     required this.presets,
     required this.onCreate,
     required this.onEdit,
+    required this.onStart,
     required this.onDelete,
     required this.onToggleTheme,
     required this.isDark,
@@ -24,6 +25,7 @@ class HomeDashboard extends StatelessWidget {
   final List<FocusPreset> presets;
   final VoidCallback onCreate;
   final ValueChanged<FocusPreset> onEdit;
+  final ValueChanged<FocusPreset> onStart;
   final ValueChanged<FocusPreset> onDelete;
   final VoidCallback onToggleTheme;
   final bool isDark;
@@ -224,7 +226,9 @@ class HomeDashboard extends StatelessWidget {
                     title: featured?.name ?? 'Deep Focus',
                     minutes: featured?.durationMinutes ?? 25,
                     icon: Icons.notifications_active_rounded,
-                    onTap: featured == null ? onCreate : () => onEdit(featured),
+                    onTap: featured == null
+                        ? onCreate
+                        : () => onStart(featured),
                     preset: featured,
                     onEdit: onEdit,
                     onDelete: onDelete,
@@ -247,7 +251,7 @@ class HomeDashboard extends StatelessWidget {
                           icon: Icons.cloud_rounded,
                           onTap: second == null
                               ? onCreate
-                              : () => onEdit(second),
+                              : () => onStart(second),
                           preset: second,
                           onEdit: onEdit,
                           onDelete: onDelete,
@@ -317,7 +321,7 @@ class HomeDashboard extends StatelessWidget {
             for (final preset in presets.skip(2))
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                onTap: () => onEdit(preset),
+                onTap: () => onStart(preset),
                 title: Text(preset.name, style: TextStyle(color: foreground)),
                 subtitle: Text(
                   '${preset.durationMinutes} min',

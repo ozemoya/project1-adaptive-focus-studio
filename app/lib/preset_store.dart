@@ -27,6 +27,7 @@ class FocusSession {
     required this.plannedMinutes,
     required this.completedMinutes,
     required this.finishedAt,
+    this.isManual = false,
   });
 
   final int? id;
@@ -35,6 +36,7 @@ class FocusSession {
   final int plannedMinutes;
   final int completedMinutes;
   final DateTime finishedAt;
+  final bool isManual;
 }
 
 class PresetStore {
@@ -46,7 +48,7 @@ class PresetStore {
     final database = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onCreate: (db, _) async {
           await db.execute('''
           CREATE TABLE presets (
@@ -56,14 +58,19 @@ class PresetStore {
             mood TEXT NOT NULL DEFAULT 'Calm'
           )
         ''');
-          await _createSessions(db);
+          await _createSessions(db, withManual: true);
         },
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
             await db.execute(
               "ALTER TABLE presets ADD COLUMN mood TEXT NOT NULL DEFAULT 'Calm'",
             );
-            await _createSessions(db);
+            await _createSessions(db, withManual: false);
+          }
+          if (oldVersion < 3) {
+            await db.execute(
+              'ALTER TABLE sessions ADD COLUMN manual INTEGER NOT NULL DEFAULT 0',
+            );
           }
         },
       ),
@@ -127,14 +134,17 @@ class PresetStore {
   Future<int> delete(int id) =>
       _database.delete('presets', where: 'id = ?', whereArgs: [id]);
 
-  static Future<void> _createSessions(DatabaseExecutor db) => db.execute('''
+  static Future<void> _createSessions(
+    DatabaseExecutor db, {
+    required bool withManual,
+  }) => db.execute('''
     CREATE TABLE sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       preset_name TEXT NOT NULL,
       mood TEXT NOT NULL,
       planned_minutes INTEGER NOT NULL,
       completed_minutes INTEGER NOT NULL,
-      finished_at TEXT NOT NULL
+      finished_at TEXT NOT NULL${withManual ? ', manual INTEGER NOT NULL DEFAULT 0' : ''}
     )
   ''');
 
@@ -152,6 +162,7 @@ class PresetStore {
           plannedMinutes: row['planned_minutes'] as int,
           completedMinutes: row['completed_minutes'] as int,
           finishedAt: DateTime.parse(row['finished_at'] as String),
+          isManual: (row['manual'] as int) == 1,
         ),
     ];
   }
@@ -163,6 +174,7 @@ class PresetStore {
       'planned_minutes': session.plannedMinutes,
       'completed_minutes': session.completedMinutes,
       'finished_at': session.finishedAt.toIso8601String(),
+      'manual': session.isManual ? 1 : 0,
     });
     return FocusSession(
       id: id,
@@ -171,6 +183,26 @@ class PresetStore {
       plannedMinutes: session.plannedMinutes,
       completedMinutes: session.completedMinutes,
       finishedAt: session.finishedAt,
+      isManual: session.isManual,
+    );
+  }
+
+  Future<int> updateSession(FocusSession session) {
+    if (session.id == null) {
+      throw ArgumentError('Cannot update an unsaved session');
+    }
+    return _database.update(
+      'sessions',
+      {
+        'preset_name': session.presetName,
+        'mood': session.mood,
+        'planned_minutes': session.plannedMinutes,
+        'completed_minutes': session.completedMinutes,
+        'finished_at': session.finishedAt.toIso8601String(),
+        'manual': session.isManual ? 1 : 0,
+      },
+      where: 'id = ?',
+      whereArgs: [session.id],
     );
   }
 

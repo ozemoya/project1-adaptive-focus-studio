@@ -1,4 +1,5 @@
 import 'package:adaptive_focus_studio/main.dart';
+import 'package:adaptive_focus_studio/app_preferences.dart';
 import 'package:adaptive_focus_studio/preset_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,7 +8,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   setUpAll(sqfliteFfiInit);
   late PresetStore store;
+  late _MemoryPreferences preferences;
   setUp(() async {
+    preferences = _MemoryPreferences();
     store = await PresetStore.open(
       databaseFactoryFfiNoIsolate,
       inMemoryDatabasePath,
@@ -18,7 +21,9 @@ void main() {
   testWidgets('all five sections are reachable from the navigation bar', (
     tester,
   ) async {
-    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
     await tester.pumpAndSettle();
 
     final sections = <String, String>{
@@ -26,7 +31,7 @@ void main() {
       'Editor': 'Create a preset',
       'Focus': 'Run a focus session',
       'History': 'Review your sessions',
-      'Settings': 'Choose local preferences',
+      'Settings': 'Your settings.',
     };
 
     for (final entry in sections.entries) {
@@ -39,7 +44,9 @@ void main() {
   testWidgets('preset editor rejects invalid values and shows a saved preset', (
     tester,
   ) async {
-    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add new  +'));
     await tester.pumpAndSettle();
@@ -78,7 +85,9 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Daily\nFocus'), findsOneWidget);
 
@@ -97,7 +106,9 @@ void main() {
     final created = await store.create(
       const FocusPreset(name: 'Reading', durationMinutes: 30),
     );
-    await tester.pumpWidget(AdaptiveFocusApp(store: store));
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Reading'));
@@ -121,4 +132,57 @@ void main() {
     await tester.pumpAndSettle();
     expect(await store.all(), isEmpty);
   });
+
+  testWidgets('settings persist and set the next preset duration', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('nav-Settings')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('25 min'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('45 min').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dark mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Reduce motion'));
+    await tester.pumpAndSettle();
+
+    expect(preferences.minutes, 45);
+    expect(preferences.dark, isTrue);
+    expect(preferences.motion, isTrue);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      AdaptiveFocusApp(store: store, preferences: preferences),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Switch to light mode'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('nav-Editor')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, '45'), findsOneWidget);
+  });
+}
+
+class _MemoryPreferences implements AppPreferences {
+  bool dark = false;
+  bool motion = false;
+  int minutes = 25;
+
+  @override
+  Future<bool> darkMode() async => dark;
+  @override
+  Future<void> setDarkMode(bool value) async => dark = value;
+  @override
+  Future<int> defaultMinutes() async => minutes;
+  @override
+  Future<void> setDefaultMinutes(int value) async => minutes = value;
+  @override
+  Future<bool> reducedMotion() async => motion;
+  @override
+  Future<void> setReducedMotion(bool value) async => motion = value;
 }

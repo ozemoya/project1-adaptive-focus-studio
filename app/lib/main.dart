@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'app_preferences.dart';
 import 'home_dashboard.dart';
 import 'preset_store.dart';
 
 void main() => runApp(const AdaptiveFocusApp());
 
 class AdaptiveFocusApp extends StatelessWidget {
-  const AdaptiveFocusApp({super.key, this.store});
+  const AdaptiveFocusApp({super.key, this.store, this.preferences});
 
   final PresetStore? store;
+  final AppPreferences? preferences;
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +22,16 @@ class AdaptiveFocusApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
       ),
-      home: AppShell(store: store),
+      home: AppShell(store: store, preferences: preferences),
     );
   }
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, this.store});
+  const AppShell({super.key, this.store, this.preferences});
 
   final PresetStore? store;
+  final AppPreferences? preferences;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -37,9 +40,13 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _isDark = false;
+  bool _reducedMotion = false;
+  int _defaultMinutes = 25;
   List<FocusPreset> _presets = [];
   FocusPreset? _editingPreset;
   PresetStore? _store;
+  late final AppPreferences _preferences =
+      widget.preferences ?? DeviceAppPreferences();
   bool _loading = true;
   String? _loadError;
 
@@ -47,6 +54,67 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _loadPresets();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      final values = await Future.wait<Object>([
+        _preferences.darkMode(),
+        _preferences.defaultMinutes(),
+        _preferences.reducedMotion(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _isDark = values[0] as bool;
+        _defaultMinutes = values[1] as int;
+        _reducedMotion = values[2] as bool;
+      });
+    } catch (_) {
+      if (mounted) _showPreferenceError();
+    }
+  }
+
+  void _showPreferenceError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not save preferences. Try again.')),
+    );
+  }
+
+  Future<void> _setDarkMode(bool value) async {
+    final previous = _isDark;
+    setState(() => _isDark = value);
+    try {
+      await _preferences.setDarkMode(value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isDark = previous);
+      _showPreferenceError();
+    }
+  }
+
+  Future<void> _setDefaultMinutes(int value) async {
+    final previous = _defaultMinutes;
+    setState(() => _defaultMinutes = value);
+    try {
+      await _preferences.setDefaultMinutes(value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _defaultMinutes = previous);
+      _showPreferenceError();
+    }
+  }
+
+  Future<void> _setReducedMotion(bool value) async {
+    final previous = _reducedMotion;
+    setState(() => _reducedMotion = value);
+    try {
+      await _preferences.setReducedMotion(value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _reducedMotion = previous);
+      _showPreferenceError();
+    }
   }
 
   Future<void> _loadPresets() async {
@@ -222,16 +290,25 @@ class _AppShellState extends State<AppShell> {
                     onCreate: () => _openEditor(),
                     onEdit: _openEditor,
                     onDelete: _deletePreset,
-                    onToggleTheme: () => setState(() => _isDark = !_isDark),
+                    onToggleTheme: () => _setDarkMode(!_isDark),
                     isDark: _isDark,
                   ),
                   PresetEditor(
-                    key: ValueKey(_editingPreset?.id ?? 'new'),
+                    key: ValueKey(_editingPreset?.id ?? 'new-$_defaultMinutes'),
                     initialPreset: _editingPreset,
+                    defaultMinutes: _defaultMinutes,
                     onSave: _savePreset,
                   ),
-                  for (final section in _sections.skip(2))
+                  for (final section in _sections.skip(2).take(2))
                     _SectionPreview(section: section, isDark: _isDark),
+                  _SettingsScreen(
+                    isDark: _isDark,
+                    defaultMinutes: _defaultMinutes,
+                    reducedMotion: _reducedMotion,
+                    onDarkModeChanged: _setDarkMode,
+                    onDefaultMinutesChanged: _setDefaultMinutes,
+                    onReducedMotionChanged: _setReducedMotion,
+                  ),
                 ],
               ),
         bottomNavigationBar: SafeArea(
@@ -310,9 +387,15 @@ class _AppShellState extends State<AppShell> {
 }
 
 class PresetEditor extends StatefulWidget {
-  const PresetEditor({super.key, required this.onSave, this.initialPreset});
+  const PresetEditor({
+    super.key,
+    required this.onSave,
+    required this.defaultMinutes,
+    this.initialPreset,
+  });
 
   final Future<bool> Function(FocusPreset) onSave;
+  final int defaultMinutes;
   final FocusPreset? initialPreset;
 
   @override
@@ -325,7 +408,7 @@ class _PresetEditorState extends State<PresetEditor> {
     text: widget.initialPreset?.name ?? '',
   );
   late final _durationController = TextEditingController(
-    text: '${widget.initialPreset?.durationMinutes ?? 25}',
+    text: '${widget.initialPreset?.durationMinutes ?? widget.defaultMinutes}',
   );
 
   @override
@@ -346,7 +429,7 @@ class _PresetEditorState extends State<PresetEditor> {
     );
     if (saved && mounted) {
       _nameController.clear();
-      _durationController.text = '25';
+      _durationController.text = '${widget.defaultMinutes}';
     }
   }
 
@@ -532,6 +615,93 @@ class _SectionPreview extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SettingsScreen extends StatelessWidget {
+  const _SettingsScreen({
+    required this.isDark,
+    required this.defaultMinutes,
+    required this.reducedMotion,
+    required this.onDarkModeChanged,
+    required this.onDefaultMinutesChanged,
+    required this.onReducedMotionChanged,
+  });
+
+  final bool isDark;
+  final int defaultMinutes;
+  final bool reducedMotion;
+  final ValueChanged<bool> onDarkModeChanged;
+  final ValueChanged<int> onDefaultMinutesChanged;
+  final ValueChanged<bool> onReducedMotionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = isDark ? Colors.white : ink;
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(23, 31, 23, 30),
+        children: [
+          Text(
+            'MAKE IT YOURS',
+            style: TextStyle(
+              color: foreground.withValues(alpha: 0.58),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Your settings.',
+            style: TextStyle(
+              color: foreground,
+              fontSize: 38,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Saved on this device.',
+            style: TextStyle(color: foreground.withValues(alpha: 0.65)),
+          ),
+          const SizedBox(height: 28),
+          SwitchListTile.adaptive(
+            title: const Text('Dark mode'),
+            subtitle: const Text('Use a darker screen palette'),
+            value: isDark,
+            onChanged: onDarkModeChanged,
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('Default focus length'),
+            subtitle: const Text('Used when you create a new plan'),
+            trailing: DropdownButton<int>(
+              value: defaultMinutes,
+              onChanged: (value) {
+                if (value != null) onDefaultMinutesChanged(value);
+              },
+              items: const [15, 25, 30, 45, 60]
+                  .map(
+                    (minutes) => DropdownMenuItem(
+                      value: minutes,
+                      child: Text('$minutes min'),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const Divider(),
+          SwitchListTile.adaptive(
+            title: const Text('Reduce motion'),
+            subtitle: const Text('Use fewer animations where possible'),
+            value: reducedMotion,
+            onChanged: onReducedMotionChanged,
+          ),
+        ],
       ),
     );
   }

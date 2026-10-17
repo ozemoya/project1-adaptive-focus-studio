@@ -27,6 +27,19 @@ void main() {
       1,
     );
     expect((await reopened.all()).single.durationMinutes, 45);
+    expect((await reopened.all()).single.mood, 'Calm');
+    final finished = await reopened.createSession(
+      FocusSession(
+        presetName: 'Writing',
+        mood: 'Calm',
+        plannedMinutes: 45,
+        completedMinutes: 23,
+        finishedAt: DateTime.utc(2026, 10, 17, 9),
+      ),
+    );
+    expect((await reopened.sessions()).single.completedMinutes, 23);
+    expect(await reopened.deleteSession(finished.id!), 1);
+    expect(await reopened.sessions(), isEmpty);
     expect(await reopened.delete(created.id!), 1);
     expect(await reopened.all(), isEmpty);
     await reopened.close();

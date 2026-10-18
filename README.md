@@ -25,5 +25,5 @@ All five navigation destinations have working layouts. Presets shows saved plans
 
 The dashboard now uses a compact lavender focus banner, a seven-day strip, warm plan cards, and a rounded five-destination navigation bar. The header switches between light and dark palettes. The flower artwork is drawn in Flutter; the reference image is not bundled into the app.
 
-The editable Figma file currently contains light and dark dashboard reference frames. Editor, Focus, History, and Settings use their matching colors, type scale, rounded cards, and navigation treatment, with content guided by the five proposal wireframes in `proposal_assets/`.
+The editable Figma file contains five screen layouts: dashboard, plan editor, focus timer, history, and settings. It also includes a dark dashboard variant. The Flutter screens follow the shared colors, type scale, rounded cards, and five-destination navigation treatment. The proposal wireframes are in `proposal_assets/`.
 

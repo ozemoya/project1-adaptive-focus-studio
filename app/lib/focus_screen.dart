@@ -29,6 +29,7 @@ class _FocusScreenState extends State<FocusScreen> {
   int _elapsedSeconds = 0;
   bool _running = false;
   bool _started = false;
+  bool _completed = false;
   bool _saving = false;
   int? _overrideMinutes;
   bool _showSuggestion = true;
@@ -46,7 +47,7 @@ class _FocusScreenState extends State<FocusScreen> {
   }
 
   void _start() {
-    if (widget.preset == null || _running) return;
+    if (widget.preset == null || _running || _completed) return;
     _timer?.cancel();
     setState(() {
       _started = true;
@@ -54,11 +55,14 @@ class _FocusScreenState extends State<FocusScreen> {
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() => _elapsedSeconds++);
-      if (_elapsedSeconds >=
-          (_overrideMinutes ?? widget.preset!.durationMinutes) * 60) {
+      final total = (_overrideMinutes ?? widget.preset!.durationMinutes) * 60;
+      setState(() => _elapsedSeconds = (_elapsedSeconds + 1).clamp(0, total));
+      if (_elapsedSeconds == total) {
         _timer?.cancel();
-        setState(() => _running = false);
+        setState(() {
+          _running = false;
+          _completed = true;
+        });
       }
     });
   }
@@ -73,6 +77,7 @@ class _FocusScreenState extends State<FocusScreen> {
     _elapsedSeconds = 0;
     _running = false;
     _started = false;
+    _completed = false;
     _overrideMinutes = null;
     _showSuggestion = true;
   }
@@ -162,7 +167,9 @@ class _FocusScreenState extends State<FocusScreen> {
     final remaining = (total - _elapsedSeconds).clamp(0, total);
     final display =
         '${(remaining ~/ 60).toString().padLeft(2, '0')}:${(remaining % 60).toString().padLeft(2, '0')}';
-    final status = !_started
+    final status = _completed
+        ? 'Complete'
+        : !_started
         ? 'Ready'
         : _running
         ? 'Running'
@@ -255,7 +262,9 @@ class _FocusScreenState extends State<FocusScreen> {
               child: StudioButton(
                 color: periwinkle,
                 label: _running ? 'Pause' : 'Resume',
-                onPressed: _started ? (_running ? _pause : _start) : null,
+                onPressed: _started && !_completed
+                    ? (_running ? _pause : _start)
+                    : null,
               ),
             ),
           ],

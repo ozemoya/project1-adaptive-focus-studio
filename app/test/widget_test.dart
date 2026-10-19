@@ -1,5 +1,6 @@
 import 'package:adaptive_focus_studio/main.dart';
 import 'package:adaptive_focus_studio/app_preferences.dart';
+import 'package:adaptive_focus_studio/focus_screen.dart';
 import 'package:adaptive_focus_studio/preset_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,35 @@ void main() {
     );
   });
   tearDown(() async => store.close());
+
+  testWidgets('completed timer stops at zero until the session is saved', (
+    tester,
+  ) async {
+    _useTallPhone(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FocusScreen(
+            preset: const FocusPreset(
+              name: 'Short session',
+              durationMinutes: 1,
+            ),
+            sessions: const [],
+            onFinish: (_) async => true,
+            onChoosePlan: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Start session'));
+    await tester.pump(const Duration(seconds: 61));
+    expect(find.text('00:00'), findsOneWidget);
+    expect(find.textContaining('Complete · Elapsed 01:00'), findsOneWidget);
+    final resume = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Resume'),
+    );
+    expect(resume.onPressed, isNull);
+  });
 
   testWidgets('all five sections are reachable from the navigation bar', (
     tester,

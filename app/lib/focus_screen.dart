@@ -13,12 +13,14 @@ class FocusScreen extends StatefulWidget {
     required this.sessions,
     required this.onFinish,
     required this.onChoosePlan,
+    this.now,
   });
 
   final FocusPreset? preset;
   final List<FocusSession> sessions;
   final Future<bool> Function(FocusSession) onFinish;
   final VoidCallback onChoosePlan;
+  final DateTime Function()? now;
 
   @override
   State<FocusScreen> createState() => _FocusScreenState();
@@ -27,12 +29,16 @@ class FocusScreen extends StatefulWidget {
 class _FocusScreenState extends State<FocusScreen> {
   Timer? _timer;
   int _elapsedSeconds = 0;
+  int _elapsedAtStart = 0;
+  DateTime? _runStartedAt;
   bool _running = false;
   bool _started = false;
   bool _completed = false;
   bool _saving = false;
   int? _overrideMinutes;
   bool _showSuggestion = true;
+
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
 
   @override
   void didUpdateWidget(covariant FocusScreen oldWidget) {
@@ -49,32 +55,44 @@ class _FocusScreenState extends State<FocusScreen> {
   void _start() {
     if (widget.preset == null || _running || _completed) return;
     _timer?.cancel();
+    _elapsedAtStart = _elapsedSeconds;
+    _runStartedAt = _now;
     setState(() {
       _started = true;
       _running = true;
     });
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final total = (_overrideMinutes ?? widget.preset!.durationMinutes) * 60;
-      setState(() => _elapsedSeconds = (_elapsedSeconds + 1).clamp(0, total));
-      if (_elapsedSeconds == total) {
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _refreshElapsed(),
+    );
+  }
+
+  void _refreshElapsed() {
+    if (!mounted || !_running || _runStartedAt == null) return;
+    final total = (_overrideMinutes ?? widget.preset!.durationMinutes) * 60;
+    final seconds = _now.difference(_runStartedAt!).inSeconds;
+    final elapsed = (_elapsedAtStart + seconds).clamp(0, total);
+    setState(() {
+      _elapsedSeconds = elapsed;
+      if (elapsed == total) {
+        _running = false;
+        _completed = true;
         _timer?.cancel();
-        setState(() {
-          _running = false;
-          _completed = true;
-        });
       }
     });
   }
 
   void _pause() {
+    _refreshElapsed();
     _timer?.cancel();
-    setState(() => _running = false);
+    if (mounted) setState(() => _running = false);
   }
 
   void _reset() {
     _timer?.cancel();
     _elapsedSeconds = 0;
+    _elapsedAtStart = 0;
+    _runStartedAt = null;
     _running = false;
     _started = false;
     _completed = false;
@@ -106,6 +124,7 @@ class _FocusScreenState extends State<FocusScreen> {
   Future<void> _finish() async {
     final preset = widget.preset;
     if (preset == null || !_started || _saving) return;
+    _refreshElapsed();
     _timer?.cancel();
     setState(() {
       _running = false;
@@ -117,7 +136,7 @@ class _FocusScreenState extends State<FocusScreen> {
         mood: preset.mood,
         plannedMinutes: _overrideMinutes ?? preset.durationMinutes,
         completedMinutes: (_elapsedSeconds / 60).ceil(),
-        finishedAt: DateTime.now(),
+        finishedAt: _now,
       ),
     );
     if (!mounted) return;

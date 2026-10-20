@@ -19,10 +19,11 @@ void main() {
   });
   tearDown(() async => store.close());
 
-  testWidgets('completed timer stops at zero until the session is saved', (
+  testWidgets('timer catches up after delayed ticks and respects pause', (
     tester,
   ) async {
     _useTallPhone(tester);
+    var now = DateTime.utc(2026, 10, 20, 9);
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -34,12 +35,22 @@ void main() {
             sessions: const [],
             onFinish: (_) async => true,
             onChoosePlan: () {},
+            now: () => now,
           ),
         ),
       ),
     );
     await tester.tap(find.text('Start session'));
-    await tester.pump(const Duration(seconds: 61));
+    now = now.add(const Duration(seconds: 30));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('00:30'), findsOneWidget);
+    await tester.tap(find.text('Pause'));
+    now = now.add(const Duration(seconds: 20));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('00:30'), findsOneWidget);
+    await tester.tap(find.text('Resume'));
+    now = now.add(const Duration(seconds: 31));
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('00:00'), findsOneWidget);
     expect(find.textContaining('Complete · Elapsed 01:00'), findsOneWidget);
     final resume = tester.widget<FilledButton>(

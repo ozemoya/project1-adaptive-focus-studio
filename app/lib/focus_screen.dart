@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'home_dashboard.dart';
 import 'preset_store.dart';
+import 'session_scout.dart';
 import 'studio_components.dart';
 
 class FocusScreen extends StatefulWidget {
@@ -193,12 +194,7 @@ class _FocusScreenState extends State<FocusScreen> {
         : _running
         ? 'Running'
         : 'Paused';
-    final recent = widget.sessions
-        .where((s) => s.mood == preset.mood && s.completedMinutes > 0)
-        .take(3)
-        .toList();
-    final samples = recent.map((s) => s.completedMinutes).toList()..sort();
-    final suggestion = samples.length == 3 ? samples[1].clamp(10, 60) : null;
+    final suggestion = suggestDuration(widget.sessions, preset.mood);
     return StudioPage(
       eyebrow: 'Session activity',
       title: 'Time to focus',
@@ -323,7 +319,7 @@ class _FocusScreenState extends State<FocusScreen> {
                 ),
                 const SizedBox(height: 9),
                 Text(
-                  'Try $suggestion minutes',
+                  'Try ${suggestion.minutes} minutes',
                   style: const TextStyle(
                     color: ink,
                     fontSize: 22,
@@ -331,19 +327,20 @@ class _FocusScreenState extends State<FocusScreen> {
                   ),
                 ),
                 Text(
-                  'Median of ${samples.join(', ')} min from 3 recent ${preset.mood.toLowerCase()} sessions.',
+                  'Median of ${suggestion.samples.join(', ')} min from 3 recent ${preset.mood.toLowerCase()} sessions. Fixed baseline: ${ScoutSuggestion.baselineMinutes} min.',
                   style: const TextStyle(color: ink),
                 ),
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 8,
                   children: [
                     TextButton(
                       onPressed: () => setState(() {
-                        _overrideMinutes = suggestion;
+                        _overrideMinutes = suggestion.minutes;
                         _showSuggestion = false;
                       }),
                       child: const Text('Apply suggestion'),
                     ),
-                    const Spacer(),
                     TextButton(
                       onPressed: () => setState(() => _showSuggestion = false),
                       child: const Text('Not now'),

@@ -59,6 +59,45 @@ void main() {
     expect(resume.onPressed, isNull);
   });
 
+  testWidgets('Session Scout applies a transparent duration suggestion', (
+    tester,
+  ) async {
+    _useTallPhone(tester);
+    final samples = [20, 30, 40]
+        .asMap()
+        .entries
+        .map(
+          (entry) => FocusSession(
+            presetName: 'Earlier plan',
+            mood: 'Calm',
+            plannedMinutes: 25,
+            completedMinutes: entry.value,
+            finishedAt: DateTime.utc(2026, 10, entry.key + 1),
+          ),
+        )
+        .toList();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FocusScreen(
+            preset: const FocusPreset(name: 'Reading', durationMinutes: 25),
+            sessions: samples,
+            onFinish: (_) async => true,
+            onChoosePlan: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Try 30 minutes'), findsOneWidget);
+    expect(find.textContaining('Fixed baseline: 25 min'), findsOneWidget);
+    await tester.ensureVisible(find.text('Apply suggestion'));
+    await tester.tap(find.text('Apply suggestion'));
+    await tester.pump();
+    expect(find.text('30:00'), findsOneWidget);
+    expect(find.textContaining('Planned 30 minutes'), findsOneWidget);
+    expect(find.text('Try 30 minutes'), findsNothing);
+  });
+
   testWidgets('all five sections are reachable from the navigation bar', (
     tester,
   ) async {

@@ -23,91 +23,11 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   String _mood = 'All';
 
-  Future<void> _editSession([FocusSession? session]) async {
-    final form = GlobalKey<FormState>();
-    final name = TextEditingController(text: session?.presetName ?? '');
-    final minutes = TextEditingController(
-      text: '${session?.completedMinutes ?? 25}',
-    );
-    var mood = session?.mood ?? 'Calm';
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, updateDialog) => AlertDialog(
-          title: Text(session == null ? 'Add manual log' : 'Edit session'),
-          content: Form(
-            key: form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Plan name'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter a name'
-                      : null,
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: mood,
-                  decoration: const InputDecoration(labelText: 'Mood'),
-                  items: const ['Calm', 'Energized', 'Tired']
-                      .map(
-                        (value) =>
-                            DropdownMenuItem(value: value, child: Text(value)),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      updateDialog(() => mood = value ?? 'Calm'),
-                ),
-                TextFormField(
-                  controller: minutes,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Completed minutes',
-                  ),
-                  validator: (value) {
-                    final parsed = int.tryParse(value?.trim() ?? '');
-                    return parsed == null || parsed < 1 || parsed > 180
-                        ? 'Enter 1 to 180 minutes'
-                        : null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (!form.currentState!.validate()) return;
-                final completed = int.parse(minutes.text.trim());
-                final saved = await widget.onSave(
-                  FocusSession(
-                    id: session?.id,
-                    presetName: name.text.trim(),
-                    mood: mood,
-                    plannedMinutes: session?.plannedMinutes ?? completed,
-                    completedMinutes: completed,
-                    finishedAt: session?.finishedAt ?? DateTime.now(),
-                    isManual: session?.isManual ?? true,
-                  ),
-                );
-                if (saved && dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-              },
-              child: const Text('Save log'),
-            ),
-          ],
-        ),
-      ),
-    );
-    name.dispose();
-    minutes.dispose();
-  }
+  Future<void> _editSession([FocusSession? session]) => showDialog<void>(
+    context: context,
+    builder: (_) =>
+        _SessionEditorDialog(session: session, onSave: widget.onSave),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -273,4 +193,116 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   String _date(DateTime date) => '${date.month}/${date.day}/${date.year}';
+}
+
+class _SessionEditorDialog extends StatefulWidget {
+  const _SessionEditorDialog({required this.session, required this.onSave});
+
+  final FocusSession? session;
+  final Future<bool> Function(FocusSession) onSave;
+
+  @override
+  State<_SessionEditorDialog> createState() => _SessionEditorDialogState();
+}
+
+class _SessionEditorDialogState extends State<_SessionEditorDialog> {
+  final _form = GlobalKey<FormState>();
+  late final _name = TextEditingController(
+    text: widget.session?.presetName ?? '',
+  );
+  late final _minutes = TextEditingController(
+    text: '${widget.session?.completedMinutes ?? 25}',
+  );
+  late String _mood = widget.session?.mood ?? 'Calm';
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _minutes.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving || !_form.currentState!.validate()) return;
+    setState(() => _saving = true);
+    final session = widget.session;
+    final completed = int.parse(_minutes.text.trim());
+    try {
+      final saved = await widget.onSave(
+        FocusSession(
+          id: session?.id,
+          presetName: _name.text.trim(),
+          mood: _mood,
+          plannedMinutes: session?.plannedMinutes ?? completed,
+          completedMinutes: completed,
+          finishedAt: session?.finishedAt ?? DateTime.now(),
+          isManual: session?.isManual ?? true,
+        ),
+      );
+      if (saved && mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save this session. Try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.session == null ? 'Add manual log' : 'Edit session'),
+    content: Form(
+      key: _form,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: _name,
+            decoration: const InputDecoration(labelText: 'Plan name'),
+            validator: (value) =>
+                value == null || value.trim().isEmpty ? 'Enter a name' : null,
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: _mood,
+            decoration: const InputDecoration(labelText: 'Mood'),
+            items: const ['Calm', 'Energized', 'Tired']
+                .map(
+                  (value) => DropdownMenuItem(value: value, child: Text(value)),
+                )
+                .toList(),
+            onChanged: _saving
+                ? null
+                : (value) => setState(() => _mood = value ?? 'Calm'),
+          ),
+          TextFormField(
+            controller: _minutes,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Completed minutes'),
+            validator: (value) {
+              final parsed = int.tryParse(value?.trim() ?? '');
+              return parsed == null || parsed < 1 || parsed > 180
+                  ? 'Enter 1 to 180 minutes'
+                  : null;
+            },
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _saving ? null : () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: _saving ? null : _save,
+        child: Text(_saving ? 'Saving...' : 'Save log'),
+      ),
+    ],
+  );
 }

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:adaptive_focus_studio/main.dart';
 import 'package:adaptive_focus_studio/app_preferences.dart';
 import 'package:adaptive_focus_studio/focus_screen.dart';
+import 'package:adaptive_focus_studio/history_screen.dart';
 import 'package:adaptive_focus_studio/preset_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +21,45 @@ void main() {
     );
   });
   tearDown(() async => store.close());
+
+  testWidgets('manual history save cannot be submitted twice', (tester) async {
+    _useTallPhone(tester);
+    final pendingSave = Completer<bool>();
+    var requests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HistoryScreen(
+            sessions: const [],
+            onDelete: (_) {},
+            onSave: (_) {
+              requests++;
+              return pendingSave.future;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.ensureVisible(find.text('+ Add manual log'));
+    await tester.tap(find.text('+ Add manual log'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Plan name'),
+      'Review',
+    );
+    await tester.tap(find.text('Save log'));
+    await tester.pump();
+    expect(requests, 1);
+    expect(find.text('Saving...'), findsOneWidget);
+    final saveButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Saving...'),
+    );
+    expect(saveButton.onPressed, isNull);
+    pendingSave.complete(true);
+    await tester.pumpAndSettle();
+    expect(requests, 1);
+    expect(find.text('Add manual log'), findsNothing);
+  });
 
   testWidgets('timer catches up after delayed ticks and respects pause', (
     tester,

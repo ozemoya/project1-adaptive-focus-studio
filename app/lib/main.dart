@@ -264,11 +264,29 @@ class _AppShellState extends State<AppShell> {
     final id = preset.id;
     final store = _store;
     if (id == null || store == null) return;
+    late final int linkedCount;
+    try {
+      linkedCount = await store.linkedSessionCount(id);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not check linked sessions. Try again.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete this plan?'),
-        content: Text('${preset.name} will be removed from this device.'),
+        content: Text(
+          linkedCount == 0
+              ? '${preset.name} will be removed from this device.'
+              : '${preset.name} and $linkedCount linked ${linkedCount == 1 ? 'session' : 'sessions'} will be removed from this device.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -285,9 +303,11 @@ class _AppShellState extends State<AppShell> {
     try {
       await store.delete(id);
       final presets = await store.all();
+      final sessions = await store.sessions();
       if (!mounted) return;
       setState(() {
         _presets = presets;
+        _sessions = sessions;
         if (_editingPreset?.id == id) {
           _editingPreset = null;
           _selectedIndex = 0;

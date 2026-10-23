@@ -230,6 +230,16 @@ void main() {
     final created = await store.create(
       const FocusPreset(name: 'Reading', durationMinutes: 30),
     );
+    await store.createSession(
+      FocusSession(
+        presetId: created.id,
+        presetName: created.name,
+        mood: created.mood,
+        plannedMinutes: 30,
+        completedMinutes: 20,
+        finishedAt: DateTime.utc(2026, 10, 23),
+      ),
+    );
     await tester.pumpWidget(
       AdaptiveFocusApp(store: store, preferences: preferences),
     );
@@ -254,9 +264,20 @@ void main() {
     await tester.tap(find.text('Delete plan'));
     await tester.pumpAndSettle();
     expect(find.text('Delete this plan?'), findsOneWidget);
+    expect(find.textContaining('1 linked session'), findsOneWidget);
+    await tester.tap(find.text('Keep plan'));
+    await tester.pumpAndSettle();
+    expect(await store.all(), hasLength(1));
+    expect(await store.sessions(), hasLength(1));
+
+    await tester.tap(find.byKey(Key('plan-menu-${created.id}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete plan'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(await store.all(), isEmpty);
+    expect(await store.sessions(), isEmpty);
   });
 
   testWidgets('settings persist and set the next preset duration', (

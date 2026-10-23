@@ -22,6 +22,7 @@ class FocusPreset {
 class FocusSession {
   const FocusSession({
     this.id,
+    this.presetId,
     required this.presetName,
     required this.mood,
     required this.plannedMinutes,
@@ -31,6 +32,7 @@ class FocusSession {
   });
 
   final int? id;
+  final int? presetId;
   final String presetName;
   final String mood;
   final int plannedMinutes;
@@ -48,7 +50,8 @@ class PresetStore {
     final database = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
+        onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, _) async {
           await db.execute('''
           CREATE TABLE presets (
@@ -58,19 +61,45 @@ class PresetStore {
             mood TEXT NOT NULL DEFAULT 'Calm'
           )
         ''');
-          await _createSessions(db, withManual: true);
+          await _createSessions(
+            db,
+            table: 'sessions',
+            withManual: true,
+            withPresetLink: true,
+          );
         },
         onUpgrade: (db, oldVersion, _) async {
           if (oldVersion < 2) {
             await db.execute(
               "ALTER TABLE presets ADD COLUMN mood TEXT NOT NULL DEFAULT 'Calm'",
             );
-            await _createSessions(db, withManual: false);
+            await _createSessions(
+              db,
+              table: 'sessions',
+              withManual: false,
+              withPresetLink: false,
+            );
           }
           if (oldVersion < 3) {
             await db.execute(
               'ALTER TABLE sessions ADD COLUMN manual INTEGER NOT NULL DEFAULT 0',
             );
+          }
+          if (oldVersion < 4) {
+            await _createSessions(
+              db,
+              table: 'sessions_new',
+              withManual: true,
+              withPresetLink: true,
+            );
+            await db.execute('''
+              INSERT INTO sessions_new
+                (id, preset_name, mood, planned_minutes, completed_minutes, finished_at, manual)
+              SELECT id, preset_name, mood, planned_minutes, completed_minutes, finished_at, manual
+              FROM sessions
+            ''');
+            await db.execute('DROP TABLE sessions');
+            await db.execute('ALTER TABLE sessions_new RENAME TO sessions');
           }
         },
       ),
@@ -134,12 +163,23 @@ class PresetStore {
   Future<int> delete(int id) =>
       _database.delete('presets', where: 'id = ?', whereArgs: [id]);
 
+  Future<int> linkedSessionCount(int presetId) async {
+    final rows = await _database.rawQuery(
+      'SELECT COUNT(*) AS total FROM sessions WHERE preset_id = ?',
+      [presetId],
+    );
+    return rows.single['total'] as int;
+  }
+
   static Future<void> _createSessions(
     DatabaseExecutor db, {
+    required String table,
     required bool withManual,
+    required bool withPresetLink,
   }) => db.execute('''
-    CREATE TABLE sessions (
+    CREATE TABLE $table (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${withPresetLink ? 'preset_id INTEGER REFERENCES presets(id) ON DELETE CASCADE,' : ''}
       preset_name TEXT NOT NULL,
       mood TEXT NOT NULL,
       planned_minutes INTEGER NOT NULL,
@@ -157,6 +197,7 @@ class PresetStore {
       for (final row in rows)
         FocusSession(
           id: row['id'] as int,
+          presetId: row['preset_id'] as int?,
           presetName: row['preset_name'] as String,
           mood: row['mood'] as String,
           plannedMinutes: row['planned_minutes'] as int,
@@ -169,6 +210,7 @@ class PresetStore {
 
   Future<FocusSession> createSession(FocusSession session) async {
     final id = await _database.insert('sessions', {
+      'preset_id': session.presetId,
       'preset_name': session.presetName,
       'mood': session.mood,
       'planned_minutes': session.plannedMinutes,
@@ -178,6 +220,7 @@ class PresetStore {
     });
     return FocusSession(
       id: id,
+      presetId: session.presetId,
       presetName: session.presetName,
       mood: session.mood,
       plannedMinutes: session.plannedMinutes,
@@ -194,6 +237,7 @@ class PresetStore {
     return _database.update(
       'sessions',
       {
+        'preset_id': session.presetId,
         'preset_name': session.presetName,
         'mood': session.mood,
         'planned_minutes': session.plannedMinutes,

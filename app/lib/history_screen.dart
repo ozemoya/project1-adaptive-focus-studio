@@ -232,6 +232,7 @@ class _SessionEditorDialogState extends State<_SessionEditorDialog> {
       final saved = await widget.onSave(
         FocusSession(
           id: session?.id,
+          presetId: session?.presetId,
           presetName: _name.text.trim(),
           mood: _mood,
           plannedMinutes: session?.plannedMinutes ?? completed,

@@ -133,6 +133,7 @@ class _FocusScreenState extends State<FocusScreen> {
     });
     final saved = await widget.onFinish(
       FocusSession(
+        presetId: preset.id,
         presetName: preset.name,
         mood: preset.mood,
         plannedMinutes: _overrideMinutes ?? preset.durationMinutes,

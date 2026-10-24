@@ -101,6 +101,43 @@ void main() {
     expect(resume.onPressed, isNull);
   });
 
+  testWidgets('focus timer remains readable with enlarged text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: FocusScreen(
+              preset: const FocusPreset(name: 'Read', durationMinutes: 25),
+              sessions: const [],
+              onFinish: (_) async => true,
+              onChoosePlan: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('focus-timer')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('25:00'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Time remaining: 25 minutes and 0 seconds'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
+
   testWidgets('Session Scout applies a transparent duration suggestion', (
     tester,
   ) async {

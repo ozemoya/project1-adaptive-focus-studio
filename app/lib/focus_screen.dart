@@ -238,14 +238,24 @@ class _FocusScreenState extends State<FocusScreen> {
                 ),
               ),
               const SizedBox(height: 22),
-              Text(
-                display,
-                key: const Key('focus-timer'),
-                style: const TextStyle(
-                  color: ink,
-                  fontSize: 66,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -3,
+              Semantics(
+                label:
+                    'Time remaining: ${remaining ~/ 60} minutes and ${remaining % 60} seconds',
+                value: status,
+                child: ExcludeSemantics(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      display,
+                      key: const Key('focus-timer'),
+                      style: const TextStyle(
+                        color: ink,
+                        fontSize: 66,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -3,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

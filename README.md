@@ -29,5 +29,7 @@ The dashboard now uses a compact lavender focus banner, a seven-day strip, warm 
 
 The editable Figma file contains five screen layouts: dashboard, plan editor, focus timer, history, and settings. It also includes a dark dashboard variant. The Flutter screens follow the shared colors, type scale, rounded cards, and five-destination navigation treatment. The proposal wireframes are in `proposal_assets/`.
 
+The timer exposes its remaining time and status to screen readers and scales down its large digits when text is enlarged on a narrow display. A widget test covers a 320-pixel screen at double text size. Android debug APK compilation has been verified; an emulator or physical-device interaction check and a real peer usability trial remain to be recorded.
+
 [Session Scout's rule, baseline, tested cases, and limitations](docs/session-scout-evaluation.md) are documented separately.
 

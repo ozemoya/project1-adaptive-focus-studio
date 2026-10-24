@@ -39,6 +39,10 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.6
   shared_preferences: ^2.5.6
+  # Keep Android platform plugins on the channel-based releases. The newer
+  # JNI implementations crash at startup on the tested 16 KB-page emulator.
+  path_provider_android: 2.2.23
+  shared_preferences_android: 2.4.23
 dev_dependencies:
   flutter_test:
     sdk: flutter

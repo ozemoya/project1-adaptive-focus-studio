@@ -137,7 +137,8 @@ class _AppShellState extends State<AppShell> {
         _sessions = sessions;
         _loading = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Failed to load local data: $error\n$stackTrace');
       if (mounted) {
         setState(() {
           _loadError = 'Unable to load presets. Restart the app and try again.';

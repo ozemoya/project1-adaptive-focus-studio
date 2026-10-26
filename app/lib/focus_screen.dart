@@ -224,6 +224,16 @@ class _FocusScreenState extends State<FocusScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (!_started) ...[
+          StudioButton(label: 'Start session', onPressed: _start, color: pink),
+          const SizedBox(height: 8),
+          const Text(
+            'Start the selected plan when you are ready.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: ink, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+        ],
         StudioCard(
           color: orange,
           child: Column(
@@ -274,27 +284,12 @@ class _FocusScreenState extends State<FocusScreen> {
           ),
         ),
         const SizedBox(height: 13),
-        Row(
-          children: [
-            Expanded(
-              child: StudioButton(
-                color: ink,
-                label: 'Start session',
-                onPressed: _started ? null : _start,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: StudioButton(
-                color: periwinkle,
-                label: _running ? 'Pause' : 'Resume',
-                onPressed: _started && !_completed
-                    ? (_running ? _pause : _start)
-                    : null,
-              ),
-            ),
-          ],
-        ),
+        if (_started)
+          StudioButton(
+            color: periwinkle,
+            label: _running ? 'Pause' : 'Resume',
+            onPressed: !_completed ? (_running ? _pause : _start) : null,
+          ),
         const SizedBox(height: 10),
         Row(
           children: [

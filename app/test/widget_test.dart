@@ -101,6 +101,32 @@ void main() {
     expect(resume.onPressed, isNull);
   });
 
+  testWidgets('start action is visible before the timer on a phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FocusScreen(
+            preset: const FocusPreset(name: 'Reading', durationMinutes: 15),
+            sessions: const [],
+            onFinish: (_) async => true,
+            onChoosePlan: () {},
+          ),
+        ),
+      ),
+    );
+    final start = find.text('Start session');
+    final timer = find.byKey(const Key('focus-timer'));
+    expect(start, findsOneWidget);
+    expect(tester.getTopLeft(start).dy, lessThan(tester.getTopLeft(timer).dy));
+    expect(tester.getBottomRight(start).dy, lessThan(844));
+  });
+
   testWidgets('focus timer remains readable with enlarged text', (
     tester,
   ) async {

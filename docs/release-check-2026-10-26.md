@@ -7,3 +7,5 @@ The resulting APK is 56,043,741 bytes and has SHA-256
 Installed the release APK on the Pixel 7 Pro Android emulator with `adb install -r` (result: `Success`) and launched it. The saved Practice plan appeared after launch. Opened Dashboard, Plan editor, Focus, History, and Settings and captured a release screenshot of each screen for the presentation.
 
 The release package and screenshots are staged outside this public repository in the private submission folder. The release launch establishes that the APK installs and opens on this emulator; it does not replace a peer trial, a physical-device check, or the required recorded presentation and individual iCollege submissions.
+
+After the Start-button placement change, rebuilt the release APK, installed it again on the Pixel 7 Pro emulator (`Success`), and opened the Focus screen. The full-width Start button appears directly below the selected Practice plan and above the timer in the initial viewport. The revised APK has SHA-256 `E7F5DEB921630C040EEB5F814C6308AC379EAE3189EB5F8C39F131175143F8FF`. A developer check and widget test confirmed the placement; Uyiosa has not yet retested it.

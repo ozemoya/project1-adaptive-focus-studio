@@ -9,7 +9,8 @@ This is a current status snapshot reconstructed from the repository and prepared
 | Done | Peer-driven Start-button placement | Myles | Commit `e897597` and viewport test |
 | In Progress | Make timer more prominent and completion clearer | Myles | Uyiosa feedback recorded in `docs/peer-usability-trial.md`; final emulator and package check in progress |
 | Review | Selected Q&A set and presentation | Team | Questions-only Word document and 23-minute deck prepared; each member must review their own speaking part |
-| Blocked | Verify peer retest task completion | Team | Uyiosa's quote gives feedback but does not state whether he found Start without help or completed the scripted tasks |
+| Done | Verify Start interaction with peer retest | Team | Uyiosa said he could navigate and start a focus session after the layout revision; `docs/peer-usability-trial.md` |
+| Blocked | Verify remaining peer trial tasks | Team | The retest quote does not establish pause/resume/finish, History interpretation, settings persistence, or device/date |
 | Blocked | Eziz's authentic contribution evidence | Eziz | No Eziz-authored commits appear in the remote history checked today |
 | Ready | Record team demo and submit individually | Team | Both members must present and verify separate iCollege receipts |
 

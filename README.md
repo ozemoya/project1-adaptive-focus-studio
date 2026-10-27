@@ -29,7 +29,9 @@ The dashboard now uses a compact lavender focus banner, a seven-day strip, warm 
 
 The editable Figma file contains five screen layouts: dashboard, plan editor, focus timer, history, and settings. It also includes a dark dashboard variant. The Flutter screens follow the shared colors, type scale, rounded cards, and five-destination navigation treatment. The proposal wireframes are in `proposal_assets/`.
 
-The timer exposes its remaining time and status to screen readers and scales down its large digits when text is enlarged on a narrow display. A widget test covers a 320-pixel screen at double text size. [Android emulator checks](docs/device-check-2026-10-24.md) cover Pixel 7 Pro and Pixel 4 profiles, preset persistence, and dark-mode persistence after restart. A real peer usability trial remains to be recorded.
+The timer exposes its remaining time and status to screen readers and scales down its large digits when text is enlarged on a narrow display. A widget test covers a 320-pixel screen at double text size. [Android emulator checks](docs/device-check-2026-10-24.md) cover Pixel 7 Pro and Pixel 4 profiles, preset persistence, and dark-mode persistence after restart. [Uyiosa's peer feedback and retest](docs/peer-usability-trial.md) led to a more visible Start action. He said starting was easy on retest, but still wanted stronger timer and end-of-session cues; the remaining scripted tasks were not reported.
 
 [Session Scout's rule, baseline, tested cases, and limitations](docs/session-scout-evaluation.md) are documented separately.
+
+The [AI feature evidence](AI_FEATURE.md) describes the local rule, user override, baseline, alternatives, and counterexample. [Current Kanban status](docs/kanban-status-2026-10-26.md) is a reconstructed status snapshot, not evidence of four historical ClickUp board captures. No ClickUp board URL or dated snapshots have been verified. The final package may include a PDF recording this limitation. Git history currently verifies Myles's code commits; Eziz must provide his own contribution evidence.
 

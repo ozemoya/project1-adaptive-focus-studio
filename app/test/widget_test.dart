@@ -95,10 +95,9 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('00:00'), findsOneWidget);
     expect(find.textContaining('Complete · Elapsed 01:00'), findsOneWidget);
-    final resume = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Resume'),
-    );
-    expect(resume.onPressed, isNull);
+    expect(find.text('Session complete!'), findsOneWidget);
+    expect(find.text('Save session to History'), findsOneWidget);
+    expect(find.text('Resume'), findsNothing);
   });
 
   testWidgets('start action is visible before the timer on a phone', (

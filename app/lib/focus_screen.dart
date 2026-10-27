@@ -236,13 +236,20 @@ class _FocusScreenState extends State<FocusScreen> {
         ],
         StudioCard(
           color: orange,
+          borderColor: ink,
           child: Column(
             children: [
-              const Text(
-                'READY TO BEGIN',
-                style: TextStyle(
+              Text(
+                _completed
+                    ? 'SESSION COMPLETE'
+                    : _running
+                    ? 'FOCUS TIMER'
+                    : _started
+                    ? 'TIMER PAUSED'
+                    : 'READY TO BEGIN',
+                style: const TextStyle(
                   color: ink,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
                 ),
@@ -260,7 +267,7 @@ class _FocusScreenState extends State<FocusScreen> {
                       key: const Key('focus-timer'),
                       style: const TextStyle(
                         color: ink,
-                        fontSize: 66,
+                        fontSize: 76,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -3,
                       ),
@@ -284,30 +291,63 @@ class _FocusScreenState extends State<FocusScreen> {
           ),
         ),
         const SizedBox(height: 13),
-        if (_started)
-          StudioButton(
-            color: periwinkle,
-            label: _running ? 'Pause' : 'Resume',
-            onPressed: !_completed ? (_running ? _pause : _start) : null,
+        if (_completed) ...[
+          Semantics(
+            liveRegion: true,
+            child: const StudioCard(
+              color: lavender,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Session complete!',
+                    style: TextStyle(
+                      color: ink,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text('Save it to History to keep your progress.'),
+                ],
+              ),
+            ),
           ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _started && !_saving ? _finish : null,
-                child: const Text('Finish'),
-              ),
+          const SizedBox(height: 12),
+          StudioButton(
+            label: _saving ? 'Saving...' : 'Save session to History',
+            onPressed: _saving ? null : _finish,
+          ),
+          TextButton(
+            onPressed: _confirmReset,
+            child: const Text('Reset timer'),
+          ),
+        ] else ...[
+          if (_started)
+            StudioButton(
+              color: periwinkle,
+              label: _running ? 'Pause' : 'Resume',
+              onPressed: _running ? _pause : _start,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _started ? _confirmReset : null,
-                child: const Text('Reset'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _started && !_saving ? _finish : null,
+                  child: const Text('Finish'),
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _started ? _confirmReset : null,
+                  child: const Text('Reset'),
+                ),
+              ),
+            ],
+          ),
+        ],
         if (suggestion != null && _showSuggestion && !_started) ...[
           const SizedBox(height: 13),
           StudioCard(

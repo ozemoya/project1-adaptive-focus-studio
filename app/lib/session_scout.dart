@@ -1,6 +1,5 @@
 import 'preset_store.dart';
 
-/// A transparent, local duration suggestion based on three finished sessions.
 class ScoutSuggestion {
   const ScoutSuggestion(this.minutes, this.samples);
 

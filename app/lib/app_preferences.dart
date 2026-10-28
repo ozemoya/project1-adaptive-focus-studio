@@ -1,6 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Small, replaceable boundary around device preferences.
 abstract class AppPreferences {
   Future<bool> darkMode();
   Future<void> setDarkMode(bool value);
